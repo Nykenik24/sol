@@ -1,5 +1,6 @@
 #include "pluja/lexer/lexer.h"
 #include "pluja/buffer.h"
+#include "pluja/error.h"
 #include "pluja/lexer/token.h"
 #include "pluja/types.h"
 #include <stdlib.h>
@@ -51,8 +52,11 @@ void tklist_push(token_list *tklist, token_t *tk) {
 token_t **plj_lex(const char *input, uint64 *tk_num) {
   token_list *tokens = tklist_init();
 
+  uint64 line = 1;
   for (idx_t i = 0; i < strlen(input); i++) {
     if (is_ws(input[i])) {
+      if (input[i] == '\n')
+        line++;
       continue;
     }
 
@@ -61,8 +65,7 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
       i++;
 
       if (!INBOUNDS(input))
-        // TODO: error (unterminated string)
-        continue;
+        plj_fatal("unterminated string at %d\n", line);
 
       buffer_t *buf = plj_buffer_new(16);
       while (CAN_PUTC(input) && input[i] != term) {
@@ -72,18 +75,15 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
       if (input[i] == term)
         i++;
       else
-        // TODO: error (unterminated string)
-        continue;
+        plj_fatal("unterminated string at %d\n", line);
 
       if (!INBOUNDS(input))
-        // TODO: error (unterminated string)
-        continue;
+        plj_fatal("unterminated string at %d\n", line);
 
       uint64 len;
       char *txt = plj_buffer_destroy(buf, &len);
       if (!txt)
-        // TODO: internal error/warning (string is NULL)
-        continue;
+        plj_fatal_internal("duplication of buffer for string returned NULL");
       token_t *tk = plj_token_create(txt, len, PLJ_TK_STRING);
       tklist_push(tokens, tk);
     }
@@ -110,8 +110,7 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
       uint64 len;
       char *txt = plj_buffer_destroy(buf, &len);
       if (!txt)
-        // TODO: internal error/warning (ident is NULL)
-        continue;
+        plj_fatal_internal("duplication of buffer for identifier returns NULL");
       token_t *tk = plj_token_create(txt, len, PLJ_TK_IDENT);
       tklist_push(tokens, tk);
     }
