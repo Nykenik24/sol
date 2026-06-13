@@ -45,8 +45,8 @@ void tklist_push(token_list *tklist, token_t *tk) {
   tklist->list[tklist->num++] = tk;
 }
 
-#define INBOUNDS(input) ((i < strlen(input)) && (i > 0))
-#define CAN_PUTC(input) ((i + 1 < strlen(input)) && (i + 1 > 0))
+#define INBOUNDS(input) ((i <= strlen(input)) && (i >= 0))
+#define CAN_PUTC(input) ((i + 1 <= strlen(input)) && (i + 1 >= 0))
 
 token_t **plj_lex(const char *input, uint64 *tk_num) {
   token_list *tokens = tklist_init();
@@ -56,8 +56,40 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
       continue;
     }
 
+    if (input[i] == '"' || input[i] == '\'') {
+      uint8 term = input[i];
+      i++;
+
+      if (!INBOUNDS(input))
+        // TODO: error (unterminated string)
+        continue;
+
+      buffer_t *buf = plj_buffer_new(16);
+      while (CAN_PUTC(input) && input[i] != term) {
+        plj_buffer_putc(buf, input[i]);
+        i++;
+      }
+      if (input[i] == term)
+        i++;
+      else
+        // TODO: error (unterminated string)
+        continue;
+
+      if (!INBOUNDS(input))
+        // TODO: error (unterminated string)
+        continue;
+
+      uint64 len;
+      char *txt = plj_buffer_destroy(buf, &len);
+      if (!txt)
+        // TODO: internal error/warning (string is NULL)
+        continue;
+      token_t *tk = plj_token_create(txt, len, PLJ_TK_STRING);
+      tklist_push(tokens, tk);
+    }
+
     if (is_alpha(input[i]) || input[i] == '_') {
-      buffer_t *buf = plj_buffer_new(32);
+      buffer_t *buf = plj_buffer_new(16);
       plj_buffer_putc(buf, input[i]);
 
       if (CAN_PUTC(input)) {
@@ -77,9 +109,9 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
 
       uint64 len;
       char *txt = plj_buffer_destroy(buf, &len);
-      if (!txt) {
+      if (!txt)
+        // TODO: internal error/warning (ident is NULL)
         continue;
-      }
       token_t *tk = plj_token_create(txt, len, PLJ_TK_IDENT);
       tklist_push(tokens, tk);
     }

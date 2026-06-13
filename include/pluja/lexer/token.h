@@ -5,6 +5,7 @@
 typedef enum {
   PLJ_TK_EOF,
   PLJ_TK_IDENT,
+  PLJ_TK_STRING,
 } token_type_t;
 
 typedef struct {
@@ -19,5 +20,8 @@ token_t *plj_token_create(char *txt, uint64 len, token_type_t type);
 token_t *plj_token_eof();
 // Destroys a lexer token.
 void plj_token_destroy(token_t *tk);
+
+// Returns the token type as a string.
+char *plj_ttype_to_str(token_type_t type);
 
 #endif // !PLUJA_INCLUDE__LEXER_TOKEN_H

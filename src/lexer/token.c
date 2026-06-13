@@ -28,3 +28,16 @@ void plj_token_destroy(token_t *tk) {
 
   free(tk);
 }
+
+const char *tstrtable[] = {
+    [PLJ_TK_EOF] = "EOF",
+    [PLJ_TK_IDENT] = "IDENT",
+    [PLJ_TK_STRING] = "STRING",
+};
+uint64 tstrtable_len = (sizeof tstrtable / sizeof tstrtable[0]);
+
+char *plj_ttype_to_str(token_type_t type) {
+  if (type > tstrtable_len)
+    return "UNKNOWN";
+  return (char *)tstrtable[type];
+}
