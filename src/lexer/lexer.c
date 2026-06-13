@@ -49,6 +49,13 @@ void tklist_push(token_list *tklist, token_t *tk) {
 #define INBOUNDS(input) ((i <= strlen(input)) && (i >= 0))
 #define CAN_PUTC(input) ((i + 1 <= strlen(input)) && (i + 1 >= 0))
 
+#define UNTERMINATED_STRING_ERROR                                              \
+  {                                                                            \
+    char *unterminated = plj_buffer_destroy(buf, NULL);                        \
+    plj_fatal("unterminated string at line %d near %c%s\n", line, term,        \
+              unterminated);                                                   \
+  }
+
 token_t **plj_lex(const char *input, uint64 *tk_num) {
   token_list *tokens = tklist_init();
 
@@ -65,7 +72,7 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
       i++;
 
       if (!INBOUNDS(input))
-        plj_fatal("unterminated string at %d\n", line);
+        plj_fatal("unterminated string at %d near %c\n", line, term);
 
       buffer_t *buf = plj_buffer_new(16);
       while (CAN_PUTC(input) && input[i] != term) {
@@ -75,10 +82,10 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
       if (input[i] == term)
         i++;
       else
-        plj_fatal("unterminated string at %d\n", line);
+        UNTERMINATED_STRING_ERROR
 
       if (!INBOUNDS(input))
-        plj_fatal("unterminated string at %d\n", line);
+        UNTERMINATED_STRING_ERROR;
 
       uint64 len;
       char *txt = plj_buffer_destroy(buf, &len);
