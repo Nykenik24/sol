@@ -5,7 +5,7 @@
 
 int main(void) {
   uint64 tk_num;
-  token_t **tokens = plj_lex("123 123.321", &tk_num);
+  token_t **tokens = plj_lex("(", &tk_num);
 
   for (idx_t i = 0; i < tk_num; i++) {
     token_t *tk = tokens[i];

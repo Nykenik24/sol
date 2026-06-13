@@ -3,7 +3,6 @@
 #include "pluja/error.h"
 #include "pluja/lexer/token.h"
 #include "pluja/types.h"
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -22,6 +21,10 @@ static bool is_num(uint8 c) { return (c >= '0' && c <= '9'); }
 static bool is_ws(uint8 c) {
   return (c == '\n' || c == ' ' || c == '\t' || c == '\r');
 }
+
+char *symtable[] = {"...", "..", "==", "<=", ">=", "+", "-", "*", "/",
+                    "%",   "^",  "#",  "<",  ">",  "(", ")", "[", "]",
+                    "{",   "}",  "=",  ";",  ":",  ",", "."};
 
 typedef struct {
   uint64 cap;
@@ -162,7 +165,26 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
       continue;
     }
 
+    for (idx_t j = 0; j < (sizeof symtable / sizeof symtable[0]); j++) {
+      char *sym = symtable[j];
+      uint64 len = strlen(sym);
+      if ((i + len <= strlen(input)) && (i + len >= 0)) {
+        char buf[len + 1];
+        for (idx_t k = 0; k < len; k++) {
+          buf[k] = input[i + k];
+        }
+        buf[len] = '\0';
+        if (strcmp(sym, buf) == 0) {
+          token_t *tk = plj_token_create(sym, len, PLJ_TK_SYMBOL);
+          tklist_push(tokens, tk);
+          goto continue_;
+        }
+      }
+    }
+
     plj_fatal("unrecognized character '%c' in line %lu\n", input[i], line);
+
+  continue_: {}
   }
 
   tklist_push(tokens, plj_token_eof());
