@@ -6,6 +6,7 @@ typedef enum {
   PLJ_TK_EOF,
   PLJ_TK_IDENT,
   PLJ_TK_STRING,
+  PLJ_TK_DIGIT,
 } token_type_t;
 
 typedef struct {

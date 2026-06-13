@@ -33,6 +33,7 @@ const char *tstrtable[] = {
     [PLJ_TK_EOF] = "EOF",
     [PLJ_TK_IDENT] = "IDENT",
     [PLJ_TK_STRING] = "STRING",
+    [PLJ_TK_DIGIT] = "DIGIT",
 };
 uint64 tstrtable_len = (sizeof tstrtable / sizeof tstrtable[0]);
 

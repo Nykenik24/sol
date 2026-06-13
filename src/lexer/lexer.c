@@ -3,6 +3,7 @@
 #include "pluja/error.h"
 #include "pluja/lexer/token.h"
 #include "pluja/types.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -52,7 +53,7 @@ void tklist_push(token_list *tklist, token_t *tk) {
 #define UNTERMINATED_STRING_ERROR                                              \
   {                                                                            \
     char *unterminated = plj_buffer_destroy(buf, NULL);                        \
-    plj_fatal("unterminated string at line %d near %c%s\n", line, term,        \
+    plj_fatal("unterminated string at line %lu near %c%s\n", line, term,       \
               unterminated);                                                   \
   }
 
@@ -67,12 +68,48 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
       continue;
     }
 
+    if (is_num(input[i])) {
+      buffer_t *buf = plj_buffer_new(16);
+
+      while (CAN_PUTC(input) && is_num(input[i])) {
+        plj_buffer_putc(buf, input[i]);
+        i++;
+      }
+
+      if (CAN_PUTC(input)) {
+        if (input[i] != '.')
+          goto push;
+
+        plj_buffer_putc(buf, input[i]);
+
+        i++;
+        if (!INBOUNDS(input))
+          goto push;
+
+        while (CAN_PUTC(input) && is_num(input[i])) {
+          plj_buffer_putc(buf, input[i]);
+          i++;
+        }
+      } else
+        goto push;
+
+    push: {
+      uint64 len;
+      char *txt = plj_buffer_destroy(buf, &len);
+      if (!txt)
+        plj_fatal_internal("duplication of buffer for digit returned NULL\n");
+      token_t *tk = plj_token_create(txt, len, PLJ_TK_DIGIT);
+      tklist_push(tokens, tk);
+      continue;
+    }
+    }
+
     if (input[i] == '"' || input[i] == '\'') {
       uint8 term = input[i];
       i++;
 
       if (!INBOUNDS(input))
-        plj_fatal("unterminated string at %d near %c\n", line, term);
+        plj_fatal("unterminated string at line %lu near %c\n", line, term);
 
       buffer_t *buf = plj_buffer_new(16);
       while (CAN_PUTC(input) && input[i] != term) {
@@ -90,9 +127,10 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
       uint64 len;
       char *txt = plj_buffer_destroy(buf, &len);
       if (!txt)
-        plj_fatal_internal("duplication of buffer for string returned NULL");
+        plj_fatal_internal("duplication of buffer for string returned NULL\n");
       token_t *tk = plj_token_create(txt, len, PLJ_TK_STRING);
       tklist_push(tokens, tk);
+      continue;
     }
 
     if (is_alpha(input[i]) || input[i] == '_') {
@@ -117,10 +155,14 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
       uint64 len;
       char *txt = plj_buffer_destroy(buf, &len);
       if (!txt)
-        plj_fatal_internal("duplication of buffer for identifier returns NULL");
+        plj_fatal_internal(
+            "duplication of buffer for identifier returns NULL\n");
       token_t *tk = plj_token_create(txt, len, PLJ_TK_IDENT);
       tklist_push(tokens, tk);
+      continue;
     }
+
+    plj_fatal("unrecognized character '%c' in line %lu\n", input[i], line);
   }
 
   tklist_push(tokens, plj_token_eof());
