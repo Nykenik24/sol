@@ -1,0 +1,12 @@
+# clangd
+compile_commands.json
+.cache
+
+# build directories
+build
+bin
+lib
+
+# misc.
+scripts
+
