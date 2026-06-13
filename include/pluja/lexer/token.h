@@ -8,6 +8,7 @@ typedef enum {
   PLJ_TK_STRING,
   PLJ_TK_DIGIT,
   PLJ_TK_SYMBOL,
+  PLJ_TK_RESERVED,
 } token_type_t;
 
 typedef struct {

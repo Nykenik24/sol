@@ -26,6 +26,11 @@ char *symtable[] = {"...", "..", "==", "<=", ">=", "+", "-", "*", "/",
                     "%",   "^",  "#",  "<",  ">",  "(", ")", "[", "]",
                     "{",   "}",  "=",  ";",  ":",  ",", "."};
 
+char *kwtable[] = {"function", "repeat", "elseif", "return", "break", "false",
+                   "local",    "until",  "while",  "else",   "goto",  "then",
+                   "true",     "and",    "end",    "for",    "nil",   "not",
+                   "do",       "if",     "in"};
+
 typedef struct {
   uint64 cap;
   uint64 num;
@@ -136,6 +141,24 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
       continue;
     }
 
+    for (idx_t j = 0; j < (sizeof kwtable / sizeof kwtable[0]); j++) {
+      char *kw = kwtable[j];
+      uint64 len = strlen(kw);
+      if ((i + len <= strlen(input)) && (i + len >= 0)) {
+        char buf[len + 1];
+        for (idx_t k = 0; k < len; k++) {
+          buf[k] = input[i + k];
+        }
+        buf[len] = '\0';
+        if (strcmp(kw, buf) == 0) {
+          token_t *tk = plj_token_create(kw, len, PLJ_TK_RESERVED);
+          tklist_push(tokens, tk);
+          i += len;
+          goto continue_;
+        }
+      }
+    }
+
     if (is_alpha(input[i]) || input[i] == '_') {
       buffer_t *buf = plj_buffer_new(16);
       plj_buffer_putc(buf, input[i]);
@@ -177,6 +200,7 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
         if (strcmp(sym, buf) == 0) {
           token_t *tk = plj_token_create(sym, len, PLJ_TK_SYMBOL);
           tklist_push(tokens, tk);
+          i += len;
           goto continue_;
         }
       }

@@ -32,7 +32,7 @@ void plj_token_destroy(token_t *tk) {
 const char *tstrtable[] = {
     [PLJ_TK_EOF] = "EOF",       [PLJ_TK_IDENT] = "IDENT",
     [PLJ_TK_STRING] = "STRING", [PLJ_TK_DIGIT] = "DIGIT",
-    [PLJ_TK_SYMBOL] = "SYMBOL",
+    [PLJ_TK_SYMBOL] = "SYMBOL", [PLJ_TK_RESERVED] = "RESERVED",
 };
 uint64 tstrtable_len = (sizeof tstrtable / sizeof tstrtable[0]);
 
