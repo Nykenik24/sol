@@ -3,8 +3,7 @@
 
 // --- LICENSE FOR ARENA ---
 // GitHub: https://github.com/tsoding/arena
-// Note: I slightly modified it to use my `size` type and
-// the naming (snake_case_t) of types I use across sol.
+// Note: I slightly modified it to use my `size` type.
 //
 // Copyright 2022 Alexey Kutepov <reximkut@gmail.com>
 
@@ -51,46 +50,46 @@
 #define ARENA_BACKEND ARENA_BACKEND_LIBC_MALLOC
 #endif // ARENA_BACKEND
 
-typedef struct region_t region_t;
+typedef struct Region Region;
 
-struct region_t {
-  region_t *next;
+struct Region {
+  Region *next;
   size count;
   size capacity;
   uintptr_t data[];
 };
 
 typedef struct {
-  region_t *begin, *end;
-} arena_t;
+  Region *begin, *end;
+} Arena;
 
 typedef struct {
-  region_t *region;
+  Region *region;
   size count;
-} arena_mark_t;
+} ArenaMark;
 
 #ifndef ARENA_REGION_DEFAULT_CAPACITY
 #define ARENA_REGION_DEFAULT_CAPACITY (8 * 1024)
 #endif // ARENA_REGION_DEFAULT_CAPACITY
 
-region_t *new_region(size capacity);
-void free_region(region_t *r);
+Region *new_region(size capacity);
+void free_region(Region *r);
 
-void *arena_alloc(arena_t *a, size size_bytes);
-void *arena_realloc(arena_t *a, void *oldptr, size oldsz, size newsz);
-char *arena_strdup(arena_t *a, const char *cstr);
-void *arena_memdup(arena_t *a, void *data, size size);
+void *arena_alloc(Arena *a, size size_bytes);
+void *arena_realloc(Arena *a, void *oldptr, size oldsz, size newsz);
+char *arena_strdup(Arena *a, const char *cstr);
+void *arena_memdup(Arena *a, void *data, size size);
 void *arena_memcpy(void *dest, const void *src, size n);
 #ifndef ARENA_NOSTDIO
-char *arena_sprintf(arena_t *a, const char *format, ...);
-char *arena_vsprintf(arena_t *a, const char *format, va_list args);
+char *arena_sprintf(Arena *a, const char *format, ...);
+char *arena_vsprintf(Arena *a, const char *format, va_list args);
 #endif // ARENA_NOSTDIO
 
-arena_mark_t arena_snapshot(arena_t *a);
-void arena_reset(arena_t *a);
-void arena_rewind(arena_t *a, arena_mark_t m);
-void arena_free(arena_t *a);
-void arena_trim(arena_t *a);
+ArenaMark arena_snapshot(Arena *a);
+void arena_reset(Arena *a);
+void arena_rewind(Arena *a, ArenaMark m);
+void arena_free(Arena *a);
+void arena_trim(Arena *a);
 
 #ifndef ARENA_DA_INIT_CAP
 #define ARENA_DA_INIT_CAP 256
@@ -160,11 +159,11 @@ void arena_trim(arena_t *a);
 // TODO: instead of accepting specific capacity new_region() should accept the
 // size of the object we want to fit into the region It should be up to
 // new_region() to decide the actual capacity to allocate
-region_t *new_region(size capacity) {
-  size size_bytes = sizeof(region_t) + sizeof(uintptr_t) * capacity;
+Region *new_region(size capacity) {
+  size size_bytes = sizeof(Region) + sizeof(uintptr_t) * capacity;
   // TODO: it would be nice if we could guarantee that the regions are allocated
   // by ARENA_BACKEND_LIBC_MALLOC are page aligned
-  region_t *r = (region_t *)malloc(size_bytes);
+  Region *r = (Region *)malloc(size_bytes);
   ARENA_ASSERT(r); // TODO: since ARENA_ASSERT is disableable go through all the
                    // places where we use it to check for failed memory
                    // allocation and return with NULL there.
@@ -174,15 +173,15 @@ region_t *new_region(size capacity) {
   return r;
 }
 
-void free_region(region_t *r) { free(r); }
+void free_region(Region *r) { free(r); }
 #elif ARENA_BACKEND == ARENA_BACKEND_LINUX_MMAP
 #include <sys/mman.h>
 #include <unistd.h>
 
-region_t *new_region(size capacity) {
-  size size_bytes = sizeof(region_t) + sizeof(uintptr_t) * capacity;
-  region_t *r = mmap(NULL, size_bytes, PROT_READ | PROT_WRITE,
-                     MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+Region *new_region(size capacity) {
+  size size_bytes = sizeof(Region) + sizeof(uintptr_t) * capacity;
+  Region *r = mmap(NULL, size_bytes, PROT_READ | PROT_WRITE,
+                   MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
   ARENA_ASSERT(r != MAP_FAILED);
   r->next = NULL;
   r->count = 0;
@@ -190,8 +189,8 @@ region_t *new_region(size capacity) {
   return r;
 }
 
-void free_region(region_t *r) {
-  size size_bytes = sizeof(region_t) + sizeof(uintptr_t) * r->capacity;
+void free_region(Region *r) {
+  size size_bytes = sizeof(Region) + sizeof(uintptr_t) * r->capacity;
   int ret = munmap(r, size_bytes);
   ARENA_ASSERT(ret == 0);
 }
@@ -207,9 +206,9 @@ void free_region(region_t *r) {
 
 #define INV_HANDLE(x) (((x) == NULL) || ((x) == INVALID_HANDLE_VALUE))
 
-region_t *new_region(size capacity) {
-  size size_bytes = sizeof(region_t) + sizeof(uintptr_t) * capacity;
-  region_t *r = VirtualAllocEx(
+Region *new_region(size capacity) {
+  size size_bytes = sizeof(Region) + sizeof(uintptr_t) * capacity;
+  Region *r = VirtualAllocEx(
       GetCurrentProcess(),      /* Allocate in current process address space */
       NULL,                     /* Unknown position */
       size_bytes,               /* Bytes to allocate */
@@ -225,7 +224,7 @@ region_t *new_region(size capacity) {
   return r;
 }
 
-void free_region(region_t *r) {
+void free_region(Region *r) {
   if (INV_HANDLE(r))
     return;
 
@@ -255,9 +254,9 @@ unsigned char *bump_pointer = &__heap_base;
 // units of page sizes
 #define ARENA_WASM_PAGE_SIZE (64 * 1024)
 
-region_t *new_region(size capacity) {
-  size size_bytes = sizeof(region_t) + sizeof(uintptr_t) * capacity;
-  region_t *r = (void *)bump_pointer;
+Region *new_region(size capacity) {
+  size size_bytes = sizeof(Region) + sizeof(uintptr_t) * capacity;
+  Region *r = (void *)bump_pointer;
 
   // grow memory brk() style
   size current_memory_size =
@@ -281,7 +280,7 @@ region_t *new_region(size capacity) {
   return r;
 }
 
-void free_region(region_t *r) {
+void free_region(Region *r) {
   // Since ARENA_BACKEND_WASM_HEAPBASE uses a primitive bump allocator to
   // allocate the regions, free_region() does nothing. It is generally
   // not recommended to free arenas anyway since it is better to keep
@@ -407,7 +406,7 @@ Arena_Mark arena_snapshot(Arena *a) {
 }
 
 void arena_reset(Arena *a) {
-  for (region_t *r = a->begin; r != NULL; r = r->next) {
+  for (Region *r = a->begin; r != NULL; r = r->next) {
     r->count = 0;
   }
 
@@ -421,7 +420,7 @@ void arena_rewind(Arena *a, Arena_Mark m) {
   }
 
   m.region->count = m.count;
-  for (region_t *r = m.region->next; r != NULL; r = r->next) {
+  for (Region *r = m.region->next; r != NULL; r = r->next) {
     r->count = 0;
   }
 
@@ -429,9 +428,9 @@ void arena_rewind(Arena *a, Arena_Mark m) {
 }
 
 void arena_free(Arena *a) {
-  region_t *r = a->begin;
+  Region *r = a->begin;
   while (r) {
-    region_t *r0 = r;
+    Region *r0 = r;
     r = r->next;
     free_region(r0);
   }
@@ -440,9 +439,9 @@ void arena_free(Arena *a) {
 }
 
 void arena_trim(Arena *a) {
-  region_t *r = a->end->next;
+  Region *r = a->end->next;
   while (r) {
-    region_t *r0 = r;
+    Region *r0 = r;
     r = r->next;
     free_region(r0);
   }

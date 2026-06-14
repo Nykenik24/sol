@@ -2,15 +2,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-buffer_t *sol_buffer_new(uint64 start_cap) {
-  buffer_t *buf = malloc(sizeof(buffer_t));
+Buffer *sol_buffer_new(uint64 start_cap) {
+  Buffer *buf = malloc(sizeof(Buffer));
   buf->cap = start_cap;
   buf->num = 0;
   buf->buf = malloc(start_cap);
   return buf;
 };
 
-void sol_buffer_putc(buffer_t *buf, uint8 c) {
+void sol_buffer_putc(Buffer *buf, uint8 c) {
   if (buf->num >= buf->cap) {
     buf->cap *= 2;
     buf->buf = realloc(buf->buf, sizeof(char) * buf->cap);
@@ -18,7 +18,7 @@ void sol_buffer_putc(buffer_t *buf, uint8 c) {
   buf->buf[buf->num++] = c;
 }
 
-void sol_buffer_puts(buffer_t *buf, const char *str) {
+void sol_buffer_puts(Buffer *buf, const char *str) {
   uint64 len = strlen(str);
   if (buf->num + len >= buf->cap) {
     buf->cap += (len + 1);
@@ -30,7 +30,7 @@ void sol_buffer_puts(buffer_t *buf, const char *str) {
   }
 }
 
-char *sol_buffer_destroy(buffer_t *buf, uint64 *buf_size) {
+char *sol_buffer_destroy(Buffer *buf, uint64 *buf_size) {
   if (!buf)
     return NULL;
 

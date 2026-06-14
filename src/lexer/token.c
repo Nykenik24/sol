@@ -3,23 +3,23 @@
 #include <stdlib.h>
 #include <string.h>
 
-token_t *sol_token_create(char *txt, uint64 len, token_type_t type) {
-  token_t *tk = malloc(sizeof(token_t));
+Token *sol_token_create(char *txt, uint64 len, TokenType type) {
+  Token *tk = malloc(sizeof(Token));
   tk->txt = strdup(txt);
   tk->len = len;
   tk->type = type;
   return tk;
 }
 
-token_t *sol_token_eof() {
-  token_t *tk = malloc(sizeof(token_t));
+Token *sol_token_eof() {
+  Token *tk = malloc(sizeof(Token));
   char buf[1] = {'\0'};
   tk->txt = strdup(buf);
   tk->type = SOL_TK_EOF;
   return tk;
 }
 
-void sol_token_destroy(token_t *tk) {
+void sol_token_destroy(Token *tk) {
   if (!tk)
     return;
 
@@ -36,7 +36,7 @@ const char *tstrtable[] = {
 };
 uint64 tstrtable_len = (sizeof tstrtable / sizeof tstrtable[0]);
 
-char *sol_ttype_to_str(token_type_t type) {
+char *sol_ttype_to_str(TokenType type) {
   if (type >= tstrtable_len)
     return "UNKNOWN";
   return (char *)tstrtable[type];

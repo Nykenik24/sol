@@ -2,8 +2,8 @@
 #include "sol/types.h"
 #include <stdlib.h>
 
-list_t *sol_list_init() {
-  list_t *list = malloc(sizeof(list_t));
+List *sol_list_init() {
+  List *list = malloc(sizeof(List));
 
   list->cap = 16;
   list->num = 0;
@@ -14,7 +14,7 @@ list_t *sol_list_init() {
 
 #define LIST_OOM(LIST) (LIST->num >= LIST->cap)
 
-void sol_list_push(list_t *list, void *ptr) {
+void sol_list_push(List *list, void *ptr) {
   if (LIST_OOM(list)) {
     while (LIST_OOM(list)) {
       list->cap *= 2;
@@ -24,7 +24,7 @@ void sol_list_push(list_t *list, void *ptr) {
   list->raw[list->num++] = ptr;
 }
 
-void sol_list_free(list_t *list) {
+void sol_list_free(List *list) {
   if (!list)
     return;
 

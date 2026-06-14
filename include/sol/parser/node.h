@@ -41,72 +41,72 @@ typedef enum {
   SOL_NODE_ATTRIB,
   SOL_NODE_DECL,
   SOL_NODE_TABLE_FIELD,
-} node_kind_t;
+} NodeKind;
 
-typedef struct node_t {
-  node_kind_t kind;
+typedef struct Node {
+  NodeKind kind;
   union {
     double num;
     const char *str;
 
     struct {
-      struct node_t *left, *right;
-      token_t *op;
+      struct Node *left, *right;
+      Token *op;
     } binop;
 
     struct {
-      struct node_t *operand;
-      token_t *op;
+      struct Node *operand;
+      Token *op;
     } unop;
 
     struct {
-      struct node_t **stmts;
+      struct Node **stmts;
       size n;
-      struct node_t *retstat;
+      struct Node *retstat;
     } block;
 
     struct {
-      struct node_t *cond;
-      struct node_t *body;
+      struct Node *cond;
+      struct Node *body;
     } while_loop;
 
     struct {
-      struct node_t *body;
-      struct node_t *cond;
+      struct Node *body;
+      struct Node *cond;
     } repeat_loop;
 
     struct {
-      struct node_t **conds;
-      struct node_t **bodies;
+      struct Node **conds;
+      struct Node **bodies;
       size n;
-      struct node_t *else_body;
+      struct Node *else_body;
     } if_stmt;
 
     struct {
       const char *name;
-      struct node_t *start;
-      struct node_t *limit;
-      struct node_t *step;
-      struct node_t *body;
+      struct Node *start;
+      struct Node *limit;
+      struct Node *step;
+      struct Node *body;
     } for_num;
 
     struct {
       const char **names;
       size name_n;
-      struct node_t **iters;
+      struct Node **iters;
       size iter_n;
-      struct node_t *body;
+      struct Node *body;
     } for_in;
 
     struct {
-      struct node_t **explist;
+      struct Node **explist;
       size n;
     } ret;
 
     struct {
-      struct node_t **targets;
+      struct Node **targets;
       size target_n;
-      struct node_t **values;
+      struct Node **values;
       size value_n;
     } assign;
 
@@ -114,7 +114,7 @@ typedef struct node_t {
       const char **names;
       const char **attribs;
       size n;
-      struct node_t **values;
+      struct Node **values;
       size value_n;
       int is_global;
     } decl;
@@ -123,47 +123,47 @@ typedef struct node_t {
       const char **path;
       size path_n;
       const char *method;
-      struct node_t *body;
+      struct Node *body;
     } func;
 
     struct {
-      struct node_t **params;
+      struct Node **params;
       size param_n;
       int has_vararg;
       const char *vararg_name;
-      struct node_t *body;
+      struct Node *body;
     } funcbody;
 
     struct {
-      struct node_t *target;
-      struct node_t **args;
+      struct Node *target;
+      struct Node **args;
       size arg_n;
     } call;
 
     struct {
-      struct node_t *target;
+      struct Node *target;
       const char *method;
-      struct node_t **args;
+      struct Node **args;
       size arg_n;
     } method_call;
 
     struct {
-      struct node_t *target;
-      struct node_t *key;
+      struct Node *target;
+      struct Node *key;
     } index;
 
     struct {
-      struct node_t *target;
+      struct Node *target;
       const char *name;
     } field;
 
     struct {
-      struct node_t *key;
-      struct node_t *val;
+      struct Node *key;
+      struct Node *val;
     } table_field;
 
     struct {
-      struct node_t **fields;
+      struct Node **fields;
       size n;
     } table;
 
@@ -173,9 +173,9 @@ typedef struct node_t {
     } attrib;
 
   } u;
-} node_t;
+} Node;
 
 // Destroy a parser node.
-void sol_node_destroy(node_t *node);
+void sol_node_destroy(Node *node);
 
 #endif // !SOL_INCLUDE__PARSER_NODE_H

@@ -8,14 +8,14 @@ static void indent(int depth) {
     fputs("  ", stdout);
 }
 
-static void print_node(node_t *node, int depth);
+static void print_node(Node *node, int depth);
 
-static void print_nodes(node_t **nodes, size n, int depth) {
+static void print_nodes(Node **nodes, size n, int depth) {
   for (size i = 0; i < n; i++)
     print_node(nodes[i], depth);
 }
 
-static void print_node(node_t *node, int depth) {
+static void print_node(Node *node, int depth) {
   if (!node) {
     indent(depth);
     puts("(null)");
@@ -331,7 +331,7 @@ static void print_node(node_t *node, int depth) {
   }
 }
 
-void sol_print_ast(node_t **nodes, size n) {
+void sol_print_ast(Node **nodes, size n) {
   for (size i = 0; i < n; i++)
     print_node(nodes[i], 0);
 }

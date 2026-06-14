@@ -28,15 +28,15 @@ int main(int argc, char *argv[]) {
   char *source = read_file(argv[1]);
 
   uint64 tk_num;
-  token_t **tokens = sol_lex(source, &tk_num);
+  Token **tokens = sol_lex(source, &tk_num);
 
   // for (size i = 0; i < tk_num; i++) {
-  //   token_t *tk = tokens[i];
+  //   Token *tk = tokens[i];
   //   printf("txt: %s, type: %s\n", tk->txt, sol_ttype_to_str(tk->type));
   // }
 
   uint64 node_num;
-  node_t **nodes = sol_parse(tokens, tk_num, &node_num);
+  Node **nodes = sol_parse(tokens, tk_num, &node_num);
   sol_print_ast(nodes, node_num);
 
   sol_cleanup_lex_res(tokens, tk_num);

@@ -1,7 +1,7 @@
 #include "sol/parser/node.h"
 #include <stdlib.h>
 
-void sol_node_destroy(node_t *node) {
+void sol_node_destroy(Node *node) {
   if (!node)
     return;
 

@@ -7,28 +7,28 @@
 #include <stdlib.h>
 #include <string.h>
 
-void sol_cleanup_parse_res(node_t **nodes, uint64 node_num) {
+void sol_cleanup_parse_res(Node **nodes, uint64 node_num) {
   for (size i = 0; i < node_num; i++) {
     sol_node_destroy(nodes[i]);
   }
 }
 
 #define skip() (*i)++
-#define node_alloc(N) node_t *N = malloc(sizeof(node_t))
+#define node_alloc(N) Node *N = malloc(sizeof(Node))
 #define match(TXT) (*i < tk_num && strcmp(tokens[*i]->txt, TXT) == 0)
 #define match_type(T) (*i < tk_num && tokens[*i]->type == (T))
 #define cur_txt() (tokens[*i]->txt)
 #define cur_type() (tokens[*i]->type)
 #define at_end() (*i >= tk_num || tokens[*i]->type == SOL_TK_EOF)
 
-static node_t *p_exp(token_t **tokens, size *i, size tk_num);
-static node_t *p_block(token_t **tokens, size *i, size tk_num);
-static node_t *p_stmt(token_t **tokens, size *i, size tk_num);
-static node_t *p_prefixexp(token_t **tokens, size *i, size tk_num);
-static node_t *p_functioncall(token_t **tokens, size *i, size tk_num);
+static Node *p_exp(Token **tokens, size *i, size tk_num);
+static Node *p_block(Token **tokens, size *i, size tk_num);
+static Node *p_stmt(Token **tokens, size *i, size tk_num);
+static Node *p_prefixexp(Token **tokens, size *i, size tk_num);
+static Node *p_functioncall(Token **tokens, size *i, size tk_num);
 
 static const char *dup_str(const char *s) {
-  size_t len = strlen(s);
+  size len = strlen(s);
   char *out = malloc(len + 1);
   memcpy(out, s, len + 1);
   return out;
@@ -49,14 +49,14 @@ static int is_unop(const char *txt) {
          strcmp(txt, "#") == 0 || strcmp(txt, "~") == 0;
 }
 
-static void expect(token_t **tokens, size *i, size tk_num, const char *txt) {
+static void expect(Token **tokens, size *i, size tk_num, const char *txt) {
   if (at_end() || !match(txt))
     sol_fatal("expected '%s '%s' at line %lu\n'", txt, cur_txt(),
               tokens[*i]->line);
   skip();
 }
 
-static const char *expect_name(token_t **tokens, size *i, size tk_num) {
+static const char *expect_name(Token **tokens, size *i, size tk_num) {
   if (at_end() || cur_type() != SOL_TK_IDENT)
     sol_fatal("expected name '%s' at line %lu\n", cur_txt(), tokens[*i]->line);
   const char *name = dup_str(cur_txt());
@@ -64,7 +64,7 @@ static const char *expect_name(token_t **tokens, size *i, size tk_num) {
   return name;
 }
 
-static const char *p_attrib(token_t **tokens, size *i, size tk_num) {
+static const char *p_attrib(Token **tokens, size *i, size tk_num) {
   if (!match("<"))
     return NULL;
   skip();
@@ -73,22 +73,22 @@ static const char *p_attrib(token_t **tokens, size *i, size tk_num) {
   return name;
 }
 
-static node_t *p_explist_into(token_t **tokens, size *i, size tk_num,
-                              node_t ***out, size *out_n) {
-  list_t *list = sol_list_init();
+static Node *p_explist_into(Token **tokens, size *i, size tk_num, Node ***out,
+                            size *out_n) {
+  List *list = sol_list_init();
   sol_list_push(list, p_exp(tokens, i, tk_num));
   while (match(",")) {
     skip();
     sol_list_push(list, p_exp(tokens, i, tk_num));
   }
-  *out = (node_t **)list->raw;
+  *out = (Node **)list->raw;
   *out_n = list->num;
   return NULL;
 }
 
-static void p_namelist_into(token_t **tokens, size *i, size tk_num,
+static void p_namelist_into(Token **tokens, size *i, size tk_num,
                             const char ***out, size *out_n) {
-  list_t *list = sol_list_init();
+  List *list = sol_list_init();
   sol_list_push(list, (void *)expect_name(tokens, i, tk_num));
   while (match(",") && tokens[*i + 1]->type == SOL_TK_IDENT) {
     skip();
@@ -98,10 +98,10 @@ static void p_namelist_into(token_t **tokens, size *i, size tk_num,
   *out_n = list->num;
 }
 
-static node_t *p_funcbody(token_t **tokens, size *i, size tk_num) {
+static Node *p_funcbody(Token **tokens, size *i, size tk_num) {
   expect(tokens, i, tk_num, "(");
 
-  list_t *params = sol_list_init();
+  List *params = sol_list_init();
   int has_vararg = 0;
   const char *vararg_name = NULL;
 
@@ -132,12 +132,12 @@ static node_t *p_funcbody(token_t **tokens, size *i, size tk_num) {
   }
 
   expect(tokens, i, tk_num, ")");
-  node_t *body = p_block(tokens, i, tk_num);
+  Node *body = p_block(tokens, i, tk_num);
   expect(tokens, i, tk_num, "end");
 
   node_alloc(node);
   node->kind = SOL_NODE_FUNC_DEF;
-  node->u.funcbody.params = (node_t **)params->raw;
+  node->u.funcbody.params = (Node **)params->raw;
   node->u.funcbody.param_n = params->num;
   node->u.funcbody.has_vararg = has_vararg;
   node->u.funcbody.vararg_name = vararg_name;
@@ -145,19 +145,19 @@ static node_t *p_funcbody(token_t **tokens, size *i, size tk_num) {
   return node;
 }
 
-static node_t *p_table(token_t **tokens, size *i, size tk_num) {
+static Node *p_table(Token **tokens, size *i, size tk_num) {
   expect(tokens, i, tk_num, "{");
-  list_t *fields = sol_list_init();
+  List *fields = sol_list_init();
 
   while (!match("}")) {
     node_alloc(field);
 
     if (match("[")) {
       skip();
-      node_t *key = p_exp(tokens, i, tk_num);
+      Node *key = p_exp(tokens, i, tk_num);
       expect(tokens, i, tk_num, "]");
       expect(tokens, i, tk_num, "=");
-      node_t *val = p_exp(tokens, i, tk_num);
+      Node *val = p_exp(tokens, i, tk_num);
       field->kind = SOL_NODE_TABLE_FIELD;
       field->u.table_field.key = key;
       field->u.table_field.val = val;
@@ -166,12 +166,12 @@ static node_t *p_table(token_t **tokens, size *i, size tk_num) {
       const char *name = dup_str(cur_txt());
       skip();
       skip(); // '='
-      node_t *val = p_exp(tokens, i, tk_num);
+      Node *val = p_exp(tokens, i, tk_num);
       field->kind = SOL_NODE_FIELD;
       field->u.field.name = name;
       field->u.field.target = val;
     } else {
-      node_t *val = p_exp(tokens, i, tk_num);
+      Node *val = p_exp(tokens, i, tk_num);
       *field = *val;
       free(val);
     }
@@ -188,13 +188,13 @@ static node_t *p_table(token_t **tokens, size *i, size tk_num) {
 
   node_alloc(node);
   node->kind = SOL_NODE_TABLE;
-  node->u.table.fields = (node_t **)fields->raw;
+  node->u.table.fields = (Node **)fields->raw;
   node->u.table.n = fields->num;
   return node;
 }
 
-static node_t **p_args(token_t **tokens, size *i, size tk_num, size *arg_n) {
-  list_t *args = sol_list_init();
+static Node **p_args(Token **tokens, size *i, size tk_num, size *arg_n) {
+  List *args = sol_list_init();
 
   if (match("(")) {
     skip();
@@ -219,10 +219,10 @@ static node_t **p_args(token_t **tokens, size *i, size tk_num, size *arg_n) {
   }
 
   *arg_n = args->num;
-  return (node_t **)args->raw;
+  return (Node **)args->raw;
 }
 
-static node_t *p_primaryexp(token_t **tokens, size *i, size tk_num) {
+static Node *p_primaryexp(Token **tokens, size *i, size tk_num) {
   if (cur_type() == SOL_TK_IDENT) {
     node_alloc(node);
     node->kind = SOL_NODE_IDENT;
@@ -233,7 +233,7 @@ static node_t *p_primaryexp(token_t **tokens, size *i, size tk_num) {
 
   if (match("(")) {
     skip();
-    node_t *inner = p_exp(tokens, i, tk_num);
+    Node *inner = p_exp(tokens, i, tk_num);
     expect(tokens, i, tk_num, ")");
     return inner;
   }
@@ -243,8 +243,8 @@ static node_t *p_primaryexp(token_t **tokens, size *i, size tk_num) {
   return NULL;
 }
 
-static node_t *p_prefixexp(token_t **tokens, size *i, size tk_num) {
-  node_t *node = p_primaryexp(tokens, i, tk_num);
+static Node *p_prefixexp(Token **tokens, size *i, size tk_num) {
+  Node *node = p_primaryexp(tokens, i, tk_num);
 
   while (!at_end()) {
     if (match(".")) {
@@ -257,7 +257,7 @@ static node_t *p_prefixexp(token_t **tokens, size *i, size tk_num) {
       node = field;
     } else if (match("[")) {
       skip();
-      node_t *key = p_exp(tokens, i, tk_num);
+      Node *key = p_exp(tokens, i, tk_num);
       expect(tokens, i, tk_num, "]");
       node_alloc(idx);
       idx->kind = SOL_NODE_INDEX;
@@ -268,7 +268,7 @@ static node_t *p_prefixexp(token_t **tokens, size *i, size tk_num) {
       skip();
       const char *method = expect_name(tokens, i, tk_num);
       size arg_n;
-      node_t **args = p_args(tokens, i, tk_num, &arg_n);
+      Node **args = p_args(tokens, i, tk_num, &arg_n);
       node_alloc(call);
       call->kind = SOL_NODE_METHOD_CALL;
       call->u.method_call.target = node;
@@ -278,7 +278,7 @@ static node_t *p_prefixexp(token_t **tokens, size *i, size tk_num) {
       node = call;
     } else if (match("(") || match("{") || cur_type() == SOL_TK_STRING) {
       size arg_n;
-      node_t **args = p_args(tokens, i, tk_num, &arg_n);
+      Node **args = p_args(tokens, i, tk_num, &arg_n);
       node_alloc(call);
       call->kind = SOL_NODE_FUNC_CALL;
       call->u.call.target = node;
@@ -293,7 +293,7 @@ static node_t *p_prefixexp(token_t **tokens, size *i, size tk_num) {
   return node;
 }
 
-static node_t *p_simple_exp(token_t **tokens, size *i, size tk_num) {
+static Node *p_simple_exp(Token **tokens, size *i, size tk_num) {
   if (at_end())
     sol_fatal("unexpected end of input\n");
 
@@ -350,9 +350,9 @@ static node_t *p_simple_exp(token_t **tokens, size *i, size tk_num) {
     return p_table(tokens, i, tk_num);
   }
   if (is_unop(cur_txt())) {
-    token_t *op = tokens[*i];
+    Token *op = tokens[*i];
     skip();
-    node_t *operand = p_simple_exp(tokens, i, tk_num);
+    Node *operand = p_simple_exp(tokens, i, tk_num);
     node_alloc(n);
     n->kind = SOL_NODE_UNOP;
     n->u.unop.op = op;
@@ -395,9 +395,8 @@ static int is_right_assoc(const char *op) {
   return strcmp(op, "^") == 0 || strcmp(op, "..") == 0;
 }
 
-static node_t *p_exp_prec(token_t **tokens, size *i, size tk_num,
-                          int min_prec) {
-  node_t *left = p_simple_exp(tokens, i, tk_num);
+static Node *p_exp_prec(Token **tokens, size *i, size tk_num, int min_prec) {
+  Node *left = p_simple_exp(tokens, i, tk_num);
 
   while (!at_end() && is_binop(cur_txt())) {
     const char *op_txt = cur_txt();
@@ -405,11 +404,11 @@ static node_t *p_exp_prec(token_t **tokens, size *i, size tk_num,
     if (prec < min_prec)
       break;
 
-    token_t *op = tokens[*i];
+    Token *op = tokens[*i];
     skip();
 
     int next_prec = is_right_assoc(op_txt) ? prec : prec + 1;
-    node_t *right = p_exp_prec(tokens, i, tk_num, next_prec);
+    Node *right = p_exp_prec(tokens, i, tk_num, next_prec);
 
     node_alloc(bin);
     bin->kind = SOL_NODE_BINOP;
@@ -422,21 +421,21 @@ static node_t *p_exp_prec(token_t **tokens, size *i, size tk_num,
   return left;
 }
 
-static node_t *p_exp(token_t **tokens, size *i, size tk_num) {
+static Node *p_exp(Token **tokens, size *i, size tk_num) {
   return p_exp_prec(tokens, i, tk_num, 1);
 }
 
-static node_t *p_block(token_t **tokens, size *i, size tk_num) {
-  list_t *list = sol_list_init();
-  node_t *retstat = NULL;
+static Node *p_block(Token **tokens, size *i, size tk_num) {
+  List *list = sol_list_init();
+  Node *retstat = NULL;
 
   while (!at_end() && !match("end") && !match("else") && !match("elseif") &&
          !match("until")) {
     if (match("return")) {
       skip();
-      retstat = malloc(sizeof(node_t));
+      retstat = malloc(sizeof(Node));
       retstat->kind = SOL_NODE_RETURN;
-      list_t *rets = sol_list_init();
+      List *rets = sol_list_init();
       if (!at_end() && !match(";") && !match("end") && !match("else") &&
           !match("elseif") && !match("until")) {
         sol_list_push(rets, p_exp(tokens, i, tk_num));
@@ -445,27 +444,27 @@ static node_t *p_block(token_t **tokens, size *i, size tk_num) {
           sol_list_push(rets, p_exp(tokens, i, tk_num));
         }
       }
-      retstat->u.ret.explist = (node_t **)rets->raw;
+      retstat->u.ret.explist = (Node **)rets->raw;
       retstat->u.ret.n = rets->num;
       if (match(";"))
         skip();
       break;
     }
 
-    node_t *s = p_stmt(tokens, i, tk_num);
+    Node *s = p_stmt(tokens, i, tk_num);
     if (s)
       sol_list_push(list, s);
   }
 
   node_alloc(block);
   block->kind = SOL_NODE_BLOCK;
-  block->u.block.stmts = (node_t **)list->raw;
+  block->u.block.stmts = (Node **)list->raw;
   block->u.block.n = list->num;
   block->u.block.retstat = retstat;
   return block;
 }
 
-static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
+static Node *p_stmt(Token **tokens, size *i, size tk_num) {
   if (match(";")) {
     skip();
     return NULL;
@@ -498,7 +497,7 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
 
   if (match("do")) {
     skip();
-    node_t *body = p_block(tokens, i, tk_num);
+    Node *body = p_block(tokens, i, tk_num);
     expect(tokens, i, tk_num, "end");
     node_alloc(n);
     n->kind = SOL_NODE_DO;
@@ -509,9 +508,9 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
 
   if (match("while")) {
     skip();
-    node_t *cond = p_exp(tokens, i, tk_num);
+    Node *cond = p_exp(tokens, i, tk_num);
     expect(tokens, i, tk_num, "do");
-    node_t *body = p_block(tokens, i, tk_num);
+    Node *body = p_block(tokens, i, tk_num);
     expect(tokens, i, tk_num, "end");
     node_alloc(n);
     n->kind = SOL_NODE_WHILE;
@@ -522,9 +521,9 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
 
   if (match("repeat")) {
     skip();
-    node_t *body = p_block(tokens, i, tk_num);
+    Node *body = p_block(tokens, i, tk_num);
     expect(tokens, i, tk_num, "until");
-    node_t *cond = p_exp(tokens, i, tk_num);
+    Node *cond = p_exp(tokens, i, tk_num);
     node_alloc(n);
     n->kind = SOL_NODE_REPEAT;
     n->u.repeat_loop.body = body;
@@ -534,8 +533,8 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
 
   if (match("if")) {
     skip();
-    list_t *conds = sol_list_init();
-    list_t *bodies = sol_list_init();
+    List *conds = sol_list_init();
+    List *bodies = sol_list_init();
 
     sol_list_push(conds, p_exp(tokens, i, tk_num));
     expect(tokens, i, tk_num, "then");
@@ -548,7 +547,7 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
       sol_list_push(bodies, p_block(tokens, i, tk_num));
     }
 
-    node_t *else_body = NULL;
+    Node *else_body = NULL;
     if (match("else")) {
       skip();
       else_body = p_block(tokens, i, tk_num);
@@ -558,8 +557,8 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
 
     node_alloc(n);
     n->kind = SOL_NODE_IF;
-    n->u.if_stmt.conds = (node_t **)conds->raw;
-    n->u.if_stmt.bodies = (node_t **)bodies->raw;
+    n->u.if_stmt.conds = (Node **)conds->raw;
+    n->u.if_stmt.bodies = (Node **)bodies->raw;
     n->u.if_stmt.n = conds->num;
     n->u.if_stmt.else_body = else_body;
     return n;
@@ -571,16 +570,16 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
 
     if (match("=")) {
       skip();
-      node_t *start = p_exp(tokens, i, tk_num);
+      Node *start = p_exp(tokens, i, tk_num);
       expect(tokens, i, tk_num, ",");
-      node_t *limit = p_exp(tokens, i, tk_num);
-      node_t *step = NULL;
+      Node *limit = p_exp(tokens, i, tk_num);
+      Node *step = NULL;
       if (match(",")) {
         skip();
         step = p_exp(tokens, i, tk_num);
       }
       expect(tokens, i, tk_num, "do");
-      node_t *body = p_block(tokens, i, tk_num);
+      Node *body = p_block(tokens, i, tk_num);
       expect(tokens, i, tk_num, "end");
       node_alloc(n);
       n->kind = SOL_NODE_FOR_NUM;
@@ -592,18 +591,18 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
       return n;
     }
 
-    list_t *names = sol_list_init();
+    List *names = sol_list_init();
     sol_list_push(names, (void *)first);
     while (match(",")) {
       skip();
       sol_list_push(names, (void *)expect_name(tokens, i, tk_num));
     }
     expect(tokens, i, tk_num, "in");
-    node_t **iters;
+    Node **iters;
     size iter_n;
     p_explist_into(tokens, i, tk_num, &iters, &iter_n);
     expect(tokens, i, tk_num, "do");
-    node_t *body = p_block(tokens, i, tk_num);
+    Node *body = p_block(tokens, i, tk_num);
     expect(tokens, i, tk_num, "end");
     node_alloc(n);
     n->kind = SOL_NODE_FOR_IN;
@@ -617,7 +616,7 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
 
   if (match("function")) {
     skip();
-    list_t *path = sol_list_init();
+    List *path = sol_list_init();
     sol_list_push(path, (void *)expect_name(tokens, i, tk_num));
     while (match(".")) {
       skip();
@@ -628,7 +627,7 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
       skip();
       method = expect_name(tokens, i, tk_num);
     }
-    node_t *body = p_funcbody(tokens, i, tk_num);
+    Node *body = p_funcbody(tokens, i, tk_num);
     node_alloc(n);
     n->kind = SOL_NODE_FUNC;
     n->u.func.path = (const char **)path->raw;
@@ -645,7 +644,7 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
     if (match("function")) {
       skip();
       const char *name = expect_name(tokens, i, tk_num);
-      node_t *body = p_funcbody(tokens, i, tk_num);
+      Node *body = p_funcbody(tokens, i, tk_num);
       node_alloc(n);
       if (is_global) {
         n->kind = SOL_NODE_FUNC;
@@ -667,8 +666,8 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
       return n;
     }
 
-    list_t *names = sol_list_init();
-    list_t *attribs = sol_list_init();
+    List *names = sol_list_init();
+    List *attribs = sol_list_init();
 
     const char *first_attrib = p_attrib(tokens, i, tk_num);
     const char *first_name = expect_name(tokens, i, tk_num);
@@ -687,7 +686,7 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
       sol_list_push(attribs, (void *)(pre ? pre : post));
     }
 
-    node_t **values = NULL;
+    Node **values = NULL;
     size value_n = 0;
     if (match("=")) {
       skip();
@@ -706,22 +705,22 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
   }
 
   // varlist '=' explist  |  functioncall
-  node_t *first = p_prefixexp(tokens, i, tk_num);
+  Node *first = p_prefixexp(tokens, i, tk_num);
 
   if (match("=") || match(",")) {
-    list_t *targets = sol_list_init();
+    List *targets = sol_list_init();
     sol_list_push(targets, first);
     while (match(",")) {
       skip();
       sol_list_push(targets, p_prefixexp(tokens, i, tk_num));
     }
     expect(tokens, i, tk_num, "=");
-    node_t **values;
+    Node **values;
     size value_n;
     p_explist_into(tokens, i, tk_num, &values, &value_n);
     node_alloc(n);
     n->kind = SOL_NODE_ASSIGN;
-    n->u.assign.targets = (node_t **)targets->raw;
+    n->u.assign.targets = (Node **)targets->raw;
     n->u.assign.target_n = targets->num;
     n->u.assign.values = values;
     n->u.assign.value_n = value_n;
@@ -736,14 +735,14 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
   return NULL;
 }
 
-node_t **sol_parse(token_t **tokens, uint64 tk_num, uint64 *node_num) {
-  list_t *nodes = sol_list_init();
+Node **sol_parse(Token **tokens, uint64 tk_num, uint64 *node_num) {
+  List *nodes = sol_list_init();
   size i = 0;
 
-  node_t *root = p_block(tokens, &i, (size)tk_num);
+  Node *root = p_block(tokens, &i, (size)tk_num);
   sol_list_push(nodes, root);
 
   if (node_num)
     *node_num = nodes->num;
-  return (node_t **)nodes->raw;
+  return (Node **)nodes->raw;
 }
