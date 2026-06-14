@@ -1,15 +1,15 @@
-#include "pluja/parser/parser.h"
-#include "pluja/error.h"
-#include "pluja/lexer/token.h"
-#include "pluja/mem.h"
-#include "pluja/parser/node.h"
-#include "pluja/types.h"
+#include "sol/parser/parser.h"
+#include "sol/error.h"
+#include "sol/lexer/token.h"
+#include "sol/mem.h"
+#include "sol/parser/node.h"
+#include "sol/types.h"
 #include <stdlib.h>
 #include <string.h>
 
-void plj_cleanup_parse_res(node_t **nodes, uint64 node_num) {
+void sol_cleanup_parse_res(node_t **nodes, uint64 node_num) {
   for (size i = 0; i < node_num; i++) {
-    plj_node_destroy(nodes[i]);
+    sol_node_destroy(nodes[i]);
   }
 }
 
@@ -19,7 +19,7 @@ void plj_cleanup_parse_res(node_t **nodes, uint64 node_num) {
 #define match_type(T) (*i < tk_num && tokens[*i]->type == (T))
 #define cur_txt() (tokens[*i]->txt)
 #define cur_type() (tokens[*i]->type)
-#define at_end() (*i >= tk_num || tokens[*i]->type == PLJ_TK_EOF)
+#define at_end() (*i >= tk_num || tokens[*i]->type == SOL_TK_EOF)
 
 static node_t *p_exp(token_t **tokens, size *i, size tk_num);
 static node_t *p_block(token_t **tokens, size *i, size tk_num);
@@ -51,14 +51,14 @@ static int is_unop(const char *txt) {
 
 static void expect(token_t **tokens, size *i, size tk_num, const char *txt) {
   if (at_end() || !match(txt))
-    plj_fatal("expected '%s '%s' at line %lu\n'", txt, cur_txt(),
+    sol_fatal("expected '%s '%s' at line %lu\n'", txt, cur_txt(),
               tokens[*i]->line);
   skip();
 }
 
 static const char *expect_name(token_t **tokens, size *i, size tk_num) {
-  if (at_end() || cur_type() != PLJ_TK_IDENT)
-    plj_fatal("expected name '%s' at line %lu\n", cur_txt(), tokens[*i]->line);
+  if (at_end() || cur_type() != SOL_TK_IDENT)
+    sol_fatal("expected name '%s' at line %lu\n", cur_txt(), tokens[*i]->line);
   const char *name = dup_str(cur_txt());
   skip();
   return name;
@@ -75,11 +75,11 @@ static const char *p_attrib(token_t **tokens, size *i, size tk_num) {
 
 static node_t *p_explist_into(token_t **tokens, size *i, size tk_num,
                               node_t ***out, size *out_n) {
-  list_t *list = plj_list_init();
-  plj_list_push(list, p_exp(tokens, i, tk_num));
+  list_t *list = sol_list_init();
+  sol_list_push(list, p_exp(tokens, i, tk_num));
   while (match(",")) {
     skip();
-    plj_list_push(list, p_exp(tokens, i, tk_num));
+    sol_list_push(list, p_exp(tokens, i, tk_num));
   }
   *out = (node_t **)list->raw;
   *out_n = list->num;
@@ -88,11 +88,11 @@ static node_t *p_explist_into(token_t **tokens, size *i, size tk_num,
 
 static void p_namelist_into(token_t **tokens, size *i, size tk_num,
                             const char ***out, size *out_n) {
-  list_t *list = plj_list_init();
-  plj_list_push(list, (void *)expect_name(tokens, i, tk_num));
-  while (match(",") && tokens[*i + 1]->type == PLJ_TK_IDENT) {
+  list_t *list = sol_list_init();
+  sol_list_push(list, (void *)expect_name(tokens, i, tk_num));
+  while (match(",") && tokens[*i + 1]->type == SOL_TK_IDENT) {
     skip();
-    plj_list_push(list, (void *)expect_name(tokens, i, tk_num));
+    sol_list_push(list, (void *)expect_name(tokens, i, tk_num));
   }
   *out = (const char **)list->raw;
   *out_n = list->num;
@@ -101,7 +101,7 @@ static void p_namelist_into(token_t **tokens, size *i, size tk_num,
 static node_t *p_funcbody(token_t **tokens, size *i, size tk_num) {
   expect(tokens, i, tk_num, "(");
 
-  list_t *params = plj_list_init();
+  list_t *params = sol_list_init();
   int has_vararg = 0;
   const char *vararg_name = NULL;
 
@@ -109,24 +109,24 @@ static node_t *p_funcbody(token_t **tokens, size *i, size tk_num) {
     if (match("...")) {
       has_vararg = 1;
       skip();
-      if (match_type(PLJ_TK_IDENT)) {
+      if (match_type(SOL_TK_IDENT)) {
         vararg_name = dup_str(cur_txt());
         skip();
       }
     } else {
-      plj_list_push(params, (void *)expect_name(tokens, i, tk_num));
+      sol_list_push(params, (void *)expect_name(tokens, i, tk_num));
       while (match(",")) {
         skip();
         if (match("...")) {
           has_vararg = 1;
           skip();
-          if (match_type(PLJ_TK_IDENT)) {
+          if (match_type(SOL_TK_IDENT)) {
             vararg_name = dup_str(cur_txt());
             skip();
           }
           break;
         }
-        plj_list_push(params, (void *)expect_name(tokens, i, tk_num));
+        sol_list_push(params, (void *)expect_name(tokens, i, tk_num));
       }
     }
   }
@@ -136,7 +136,7 @@ static node_t *p_funcbody(token_t **tokens, size *i, size tk_num) {
   expect(tokens, i, tk_num, "end");
 
   node_alloc(node);
-  node->kind = PLJ_NODE_FUNC_DEF;
+  node->kind = SOL_NODE_FUNC_DEF;
   node->u.funcbody.params = (node_t **)params->raw;
   node->u.funcbody.param_n = params->num;
   node->u.funcbody.has_vararg = has_vararg;
@@ -147,7 +147,7 @@ static node_t *p_funcbody(token_t **tokens, size *i, size tk_num) {
 
 static node_t *p_table(token_t **tokens, size *i, size tk_num) {
   expect(tokens, i, tk_num, "{");
-  list_t *fields = plj_list_init();
+  list_t *fields = sol_list_init();
 
   while (!match("}")) {
     node_alloc(field);
@@ -158,16 +158,16 @@ static node_t *p_table(token_t **tokens, size *i, size tk_num) {
       expect(tokens, i, tk_num, "]");
       expect(tokens, i, tk_num, "=");
       node_t *val = p_exp(tokens, i, tk_num);
-      field->kind = PLJ_NODE_TABLE_FIELD;
+      field->kind = SOL_NODE_TABLE_FIELD;
       field->u.table_field.key = key;
       field->u.table_field.val = val;
-    } else if (cur_type() == PLJ_TK_IDENT && !at_end() &&
+    } else if (cur_type() == SOL_TK_IDENT && !at_end() &&
                strcmp(tokens[*i + 1]->txt, "=") == 0) {
       const char *name = dup_str(cur_txt());
       skip();
       skip(); // '='
       node_t *val = p_exp(tokens, i, tk_num);
-      field->kind = PLJ_NODE_FIELD;
+      field->kind = SOL_NODE_FIELD;
       field->u.field.name = name;
       field->u.field.target = val;
     } else {
@@ -176,7 +176,7 @@ static node_t *p_table(token_t **tokens, size *i, size tk_num) {
       free(val);
     }
 
-    plj_list_push(fields, field);
+    sol_list_push(fields, field);
 
     if (match(",") || match(";"))
       skip();
@@ -187,35 +187,35 @@ static node_t *p_table(token_t **tokens, size *i, size tk_num) {
   expect(tokens, i, tk_num, "}");
 
   node_alloc(node);
-  node->kind = PLJ_NODE_TABLE;
+  node->kind = SOL_NODE_TABLE;
   node->u.table.fields = (node_t **)fields->raw;
   node->u.table.n = fields->num;
   return node;
 }
 
 static node_t **p_args(token_t **tokens, size *i, size tk_num, size *arg_n) {
-  list_t *args = plj_list_init();
+  list_t *args = sol_list_init();
 
   if (match("(")) {
     skip();
     if (!match(")")) {
-      plj_list_push(args, p_exp(tokens, i, tk_num));
+      sol_list_push(args, p_exp(tokens, i, tk_num));
       while (match(",")) {
         skip();
-        plj_list_push(args, p_exp(tokens, i, tk_num));
+        sol_list_push(args, p_exp(tokens, i, tk_num));
       }
     }
     expect(tokens, i, tk_num, ")");
   } else if (match("{")) {
-    plj_list_push(args, p_table(tokens, i, tk_num));
-  } else if (cur_type() == PLJ_TK_STRING) {
+    sol_list_push(args, p_table(tokens, i, tk_num));
+  } else if (cur_type() == SOL_TK_STRING) {
     node_alloc(s);
-    s->kind = PLJ_NODE_STRING;
+    s->kind = SOL_NODE_STRING;
     s->u.str = dup_str(cur_txt());
     skip();
-    plj_list_push(args, s);
+    sol_list_push(args, s);
   } else {
-    plj_fatal("expected function arguments '%s'\n", cur_txt());
+    sol_fatal("expected function arguments '%s'\n", cur_txt());
   }
 
   *arg_n = args->num;
@@ -223,9 +223,9 @@ static node_t **p_args(token_t **tokens, size *i, size tk_num, size *arg_n) {
 }
 
 static node_t *p_primaryexp(token_t **tokens, size *i, size tk_num) {
-  if (cur_type() == PLJ_TK_IDENT) {
+  if (cur_type() == SOL_TK_IDENT) {
     node_alloc(node);
-    node->kind = PLJ_NODE_IDENT;
+    node->kind = SOL_NODE_IDENT;
     node->u.str = dup_str(cur_txt());
     skip();
     return node;
@@ -238,7 +238,7 @@ static node_t *p_primaryexp(token_t **tokens, size *i, size tk_num) {
     return inner;
   }
 
-  plj_fatal("unexpected symbol '%s' at line %lu\n", cur_txt(),
+  sol_fatal("unexpected symbol '%s' at line %lu\n", cur_txt(),
             tokens[*i]->line);
   return NULL;
 }
@@ -251,7 +251,7 @@ static node_t *p_prefixexp(token_t **tokens, size *i, size tk_num) {
       skip();
       const char *name = expect_name(tokens, i, tk_num);
       node_alloc(field);
-      field->kind = PLJ_NODE_FIELD;
+      field->kind = SOL_NODE_FIELD;
       field->u.field.target = node;
       field->u.field.name = name;
       node = field;
@@ -260,7 +260,7 @@ static node_t *p_prefixexp(token_t **tokens, size *i, size tk_num) {
       node_t *key = p_exp(tokens, i, tk_num);
       expect(tokens, i, tk_num, "]");
       node_alloc(idx);
-      idx->kind = PLJ_NODE_INDEX;
+      idx->kind = SOL_NODE_INDEX;
       idx->u.index.target = node;
       idx->u.index.key = key;
       node = idx;
@@ -270,17 +270,17 @@ static node_t *p_prefixexp(token_t **tokens, size *i, size tk_num) {
       size arg_n;
       node_t **args = p_args(tokens, i, tk_num, &arg_n);
       node_alloc(call);
-      call->kind = PLJ_NODE_METHOD_CALL;
+      call->kind = SOL_NODE_METHOD_CALL;
       call->u.method_call.target = node;
       call->u.method_call.method = method;
       call->u.method_call.args = args;
       call->u.method_call.arg_n = arg_n;
       node = call;
-    } else if (match("(") || match("{") || cur_type() == PLJ_TK_STRING) {
+    } else if (match("(") || match("{") || cur_type() == SOL_TK_STRING) {
       size arg_n;
       node_t **args = p_args(tokens, i, tk_num, &arg_n);
       node_alloc(call);
-      call->kind = PLJ_NODE_FUNC_CALL;
+      call->kind = SOL_NODE_FUNC_CALL;
       call->u.call.target = node;
       call->u.call.args = args;
       call->u.call.arg_n = arg_n;
@@ -295,49 +295,49 @@ static node_t *p_prefixexp(token_t **tokens, size *i, size tk_num) {
 
 static node_t *p_simple_exp(token_t **tokens, size *i, size tk_num) {
   if (at_end())
-    plj_fatal("unexpected end of input\n");
+    sol_fatal("unexpected end of input\n");
 
   if (match("nil")) {
     node_alloc(n);
-    n->kind = PLJ_NODE_NIL;
+    n->kind = SOL_NODE_NIL;
     skip();
     return n;
   }
   if (match("true")) {
     node_alloc(n);
-    n->kind = PLJ_NODE_TRUE;
+    n->kind = SOL_NODE_TRUE;
     skip();
     return n;
   }
   if (match("false")) {
     node_alloc(n);
-    n->kind = PLJ_NODE_FALSE;
+    n->kind = SOL_NODE_FALSE;
     skip();
     return n;
   }
   if (match("...")) {
     node_alloc(n);
-    n->kind = PLJ_NODE_VARARG;
+    n->kind = SOL_NODE_VARARG;
     skip();
     return n;
   }
-  if (cur_type() == PLJ_TK_DIGIT) {
+  if (cur_type() == SOL_TK_DIGIT) {
     node_alloc(n);
-    n->kind = PLJ_NODE_DIGIT;
+    n->kind = SOL_NODE_DIGIT;
     n->u.num = atof(cur_txt());
     skip();
     return n;
   }
-  if (cur_type() == PLJ_TK_HEX_DIGIT) {
+  if (cur_type() == SOL_TK_HEX_DIGIT) {
     node_alloc(n);
-    n->kind = PLJ_NODE_HEX_DIGIT;
+    n->kind = SOL_NODE_HEX_DIGIT;
     n->u.num = (double)strtol(cur_txt(), NULL, 16);
     skip();
     return n;
   }
-  if (cur_type() == PLJ_TK_STRING) {
+  if (cur_type() == SOL_TK_STRING) {
     node_alloc(n);
-    n->kind = PLJ_NODE_STRING;
+    n->kind = SOL_NODE_STRING;
     n->u.str = dup_str(cur_txt());
     skip();
     return n;
@@ -354,7 +354,7 @@ static node_t *p_simple_exp(token_t **tokens, size *i, size tk_num) {
     skip();
     node_t *operand = p_simple_exp(tokens, i, tk_num);
     node_alloc(n);
-    n->kind = PLJ_NODE_UNOP;
+    n->kind = SOL_NODE_UNOP;
     n->u.unop.op = op;
     n->u.unop.operand = operand;
     return n;
@@ -412,7 +412,7 @@ static node_t *p_exp_prec(token_t **tokens, size *i, size tk_num,
     node_t *right = p_exp_prec(tokens, i, tk_num, next_prec);
 
     node_alloc(bin);
-    bin->kind = PLJ_NODE_BINOP;
+    bin->kind = SOL_NODE_BINOP;
     bin->u.binop.left = left;
     bin->u.binop.right = right;
     bin->u.binop.op = op;
@@ -427,7 +427,7 @@ static node_t *p_exp(token_t **tokens, size *i, size tk_num) {
 }
 
 static node_t *p_block(token_t **tokens, size *i, size tk_num) {
-  list_t *list = plj_list_init();
+  list_t *list = sol_list_init();
   node_t *retstat = NULL;
 
   while (!at_end() && !match("end") && !match("else") && !match("elseif") &&
@@ -435,14 +435,14 @@ static node_t *p_block(token_t **tokens, size *i, size tk_num) {
     if (match("return")) {
       skip();
       retstat = malloc(sizeof(node_t));
-      retstat->kind = PLJ_NODE_RETURN;
-      list_t *rets = plj_list_init();
+      retstat->kind = SOL_NODE_RETURN;
+      list_t *rets = sol_list_init();
       if (!at_end() && !match(";") && !match("end") && !match("else") &&
           !match("elseif") && !match("until")) {
-        plj_list_push(rets, p_exp(tokens, i, tk_num));
+        sol_list_push(rets, p_exp(tokens, i, tk_num));
         while (match(",")) {
           skip();
-          plj_list_push(rets, p_exp(tokens, i, tk_num));
+          sol_list_push(rets, p_exp(tokens, i, tk_num));
         }
       }
       retstat->u.ret.explist = (node_t **)rets->raw;
@@ -454,11 +454,11 @@ static node_t *p_block(token_t **tokens, size *i, size tk_num) {
 
     node_t *s = p_stmt(tokens, i, tk_num);
     if (s)
-      plj_list_push(list, s);
+      sol_list_push(list, s);
   }
 
   node_alloc(block);
-  block->kind = PLJ_NODE_BLOCK;
+  block->kind = SOL_NODE_BLOCK;
   block->u.block.stmts = (node_t **)list->raw;
   block->u.block.n = list->num;
   block->u.block.retstat = retstat;
@@ -473,7 +473,7 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
 
   if (match("break")) {
     node_alloc(n);
-    n->kind = PLJ_NODE_BREAK;
+    n->kind = SOL_NODE_BREAK;
     skip();
     return n;
   }
@@ -481,7 +481,7 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
   if (match("goto")) {
     skip();
     node_alloc(n);
-    n->kind = PLJ_NODE_GOTO;
+    n->kind = SOL_NODE_GOTO;
     n->u.str = expect_name(tokens, i, tk_num);
     return n;
   }
@@ -491,7 +491,7 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
     const char *name = expect_name(tokens, i, tk_num);
     expect(tokens, i, tk_num, "::");
     node_alloc(n);
-    n->kind = PLJ_NODE_LABEL;
+    n->kind = SOL_NODE_LABEL;
     n->u.str = name;
     return n;
   }
@@ -501,7 +501,7 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
     node_t *body = p_block(tokens, i, tk_num);
     expect(tokens, i, tk_num, "end");
     node_alloc(n);
-    n->kind = PLJ_NODE_DO;
+    n->kind = SOL_NODE_DO;
     n->u.block = body->u.block;
     free(body);
     return n;
@@ -514,7 +514,7 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
     node_t *body = p_block(tokens, i, tk_num);
     expect(tokens, i, tk_num, "end");
     node_alloc(n);
-    n->kind = PLJ_NODE_WHILE;
+    n->kind = SOL_NODE_WHILE;
     n->u.while_loop.cond = cond;
     n->u.while_loop.body = body;
     return n;
@@ -526,7 +526,7 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
     expect(tokens, i, tk_num, "until");
     node_t *cond = p_exp(tokens, i, tk_num);
     node_alloc(n);
-    n->kind = PLJ_NODE_REPEAT;
+    n->kind = SOL_NODE_REPEAT;
     n->u.repeat_loop.body = body;
     n->u.repeat_loop.cond = cond;
     return n;
@@ -534,18 +534,18 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
 
   if (match("if")) {
     skip();
-    list_t *conds = plj_list_init();
-    list_t *bodies = plj_list_init();
+    list_t *conds = sol_list_init();
+    list_t *bodies = sol_list_init();
 
-    plj_list_push(conds, p_exp(tokens, i, tk_num));
+    sol_list_push(conds, p_exp(tokens, i, tk_num));
     expect(tokens, i, tk_num, "then");
-    plj_list_push(bodies, p_block(tokens, i, tk_num));
+    sol_list_push(bodies, p_block(tokens, i, tk_num));
 
     while (match("elseif")) {
       skip();
-      plj_list_push(conds, p_exp(tokens, i, tk_num));
+      sol_list_push(conds, p_exp(tokens, i, tk_num));
       expect(tokens, i, tk_num, "then");
-      plj_list_push(bodies, p_block(tokens, i, tk_num));
+      sol_list_push(bodies, p_block(tokens, i, tk_num));
     }
 
     node_t *else_body = NULL;
@@ -557,7 +557,7 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
     expect(tokens, i, tk_num, "end");
 
     node_alloc(n);
-    n->kind = PLJ_NODE_IF;
+    n->kind = SOL_NODE_IF;
     n->u.if_stmt.conds = (node_t **)conds->raw;
     n->u.if_stmt.bodies = (node_t **)bodies->raw;
     n->u.if_stmt.n = conds->num;
@@ -583,7 +583,7 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
       node_t *body = p_block(tokens, i, tk_num);
       expect(tokens, i, tk_num, "end");
       node_alloc(n);
-      n->kind = PLJ_NODE_FOR_NUM;
+      n->kind = SOL_NODE_FOR_NUM;
       n->u.for_num.name = first;
       n->u.for_num.start = start;
       n->u.for_num.limit = limit;
@@ -592,11 +592,11 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
       return n;
     }
 
-    list_t *names = plj_list_init();
-    plj_list_push(names, (void *)first);
+    list_t *names = sol_list_init();
+    sol_list_push(names, (void *)first);
     while (match(",")) {
       skip();
-      plj_list_push(names, (void *)expect_name(tokens, i, tk_num));
+      sol_list_push(names, (void *)expect_name(tokens, i, tk_num));
     }
     expect(tokens, i, tk_num, "in");
     node_t **iters;
@@ -606,7 +606,7 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
     node_t *body = p_block(tokens, i, tk_num);
     expect(tokens, i, tk_num, "end");
     node_alloc(n);
-    n->kind = PLJ_NODE_FOR_IN;
+    n->kind = SOL_NODE_FOR_IN;
     n->u.for_in.names = (const char **)names->raw;
     n->u.for_in.name_n = names->num;
     n->u.for_in.iters = iters;
@@ -617,11 +617,11 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
 
   if (match("function")) {
     skip();
-    list_t *path = plj_list_init();
-    plj_list_push(path, (void *)expect_name(tokens, i, tk_num));
+    list_t *path = sol_list_init();
+    sol_list_push(path, (void *)expect_name(tokens, i, tk_num));
     while (match(".")) {
       skip();
-      plj_list_push(path, (void *)expect_name(tokens, i, tk_num));
+      sol_list_push(path, (void *)expect_name(tokens, i, tk_num));
     }
     const char *method = NULL;
     if (match(":")) {
@@ -630,7 +630,7 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
     }
     node_t *body = p_funcbody(tokens, i, tk_num);
     node_alloc(n);
-    n->kind = PLJ_NODE_FUNC;
+    n->kind = SOL_NODE_FUNC;
     n->u.func.path = (const char **)path->raw;
     n->u.func.path_n = path->num;
     n->u.func.method = method;
@@ -648,9 +648,9 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
       node_t *body = p_funcbody(tokens, i, tk_num);
       node_alloc(n);
       if (is_global) {
-        n->kind = PLJ_NODE_FUNC;
+        n->kind = SOL_NODE_FUNC;
       } else {
-        n->kind = PLJ_NODE_LOCAL_FUNC;
+        n->kind = SOL_NODE_LOCAL_FUNC;
       }
       n->u.func.path = malloc(sizeof(char *));
       n->u.func.path[0] = name;
@@ -663,28 +663,28 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
     if (is_global && match("*")) {
       skip();
       node_alloc(n);
-      n->kind = PLJ_NODE_GLOBAL_WILDCARD;
+      n->kind = SOL_NODE_GLOBAL_WILDCARD;
       return n;
     }
 
-    list_t *names = plj_list_init();
-    list_t *attribs = plj_list_init();
+    list_t *names = sol_list_init();
+    list_t *attribs = sol_list_init();
 
     const char *first_attrib = p_attrib(tokens, i, tk_num);
     const char *first_name = expect_name(tokens, i, tk_num);
     const char *post_attrib = p_attrib(tokens, i, tk_num);
     const char *resolved = first_attrib ? first_attrib : post_attrib;
 
-    plj_list_push(names, (void *)first_name);
-    plj_list_push(attribs, (void *)resolved);
+    sol_list_push(names, (void *)first_name);
+    sol_list_push(attribs, (void *)resolved);
 
     while (match(",")) {
       skip();
       const char *pre = p_attrib(tokens, i, tk_num);
       const char *name = expect_name(tokens, i, tk_num);
       const char *post = p_attrib(tokens, i, tk_num);
-      plj_list_push(names, (void *)name);
-      plj_list_push(attribs, (void *)(pre ? pre : post));
+      sol_list_push(names, (void *)name);
+      sol_list_push(attribs, (void *)(pre ? pre : post));
     }
 
     node_t **values = NULL;
@@ -695,7 +695,7 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
     }
 
     node_alloc(n);
-    n->kind = PLJ_NODE_DECL;
+    n->kind = SOL_NODE_DECL;
     n->u.decl.names = (const char **)names->raw;
     n->u.decl.attribs = (const char **)attribs->raw;
     n->u.decl.n = names->num;
@@ -709,18 +709,18 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
   node_t *first = p_prefixexp(tokens, i, tk_num);
 
   if (match("=") || match(",")) {
-    list_t *targets = plj_list_init();
-    plj_list_push(targets, first);
+    list_t *targets = sol_list_init();
+    sol_list_push(targets, first);
     while (match(",")) {
       skip();
-      plj_list_push(targets, p_prefixexp(tokens, i, tk_num));
+      sol_list_push(targets, p_prefixexp(tokens, i, tk_num));
     }
     expect(tokens, i, tk_num, "=");
     node_t **values;
     size value_n;
     p_explist_into(tokens, i, tk_num, &values, &value_n);
     node_alloc(n);
-    n->kind = PLJ_NODE_ASSIGN;
+    n->kind = SOL_NODE_ASSIGN;
     n->u.assign.targets = (node_t **)targets->raw;
     n->u.assign.target_n = targets->num;
     n->u.assign.values = values;
@@ -728,20 +728,20 @@ static node_t *p_stmt(token_t **tokens, size *i, size tk_num) {
     return n;
   }
 
-  if (first->kind == PLJ_NODE_FUNC_CALL || first->kind == PLJ_NODE_METHOD_CALL)
+  if (first->kind == SOL_NODE_FUNC_CALL || first->kind == SOL_NODE_METHOD_CALL)
     return first;
 
-  plj_fatal("unrecognized token '%s' at line %lu\n", cur_txt(),
+  sol_fatal("unrecognized token '%s' at line %lu\n", cur_txt(),
             tokens[*i]->line);
   return NULL;
 }
 
-node_t **plj_parse(token_t **tokens, uint64 tk_num, uint64 *node_num) {
-  list_t *nodes = plj_list_init();
+node_t **sol_parse(token_t **tokens, uint64 tk_num, uint64 *node_num) {
+  list_t *nodes = sol_list_init();
   size i = 0;
 
   node_t *root = p_block(tokens, &i, (size)tk_num);
-  plj_list_push(nodes, root);
+  sol_list_push(nodes, root);
 
   if (node_num)
     *node_num = nodes->num;

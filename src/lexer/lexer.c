@@ -1,13 +1,13 @@
-#include "pluja/lexer/lexer.h"
-#include "pluja/error.h"
-#include "pluja/lexer/token.h"
-#include "pluja/mem.h"
-#include "pluja/types.h"
+#include "sol/lexer/lexer.h"
+#include "sol/error.h"
+#include "sol/lexer/token.h"
+#include "sol/mem.h"
+#include "sol/types.h"
 #include <string.h>
 
-void plj_cleanup_lex_res(token_t **tokens, uint64 tk_num) {
+void sol_cleanup_lex_res(token_t **tokens, uint64 tk_num) {
   for (size i = 0; i < tk_num; i++) {
-    plj_token_destroy(tokens[i]);
+    sol_token_destroy(tokens[i]);
   }
 }
 
@@ -40,20 +40,20 @@ char *kwtable[] = {"function", "repeat", "elseif", "return", "break", "false",
 
 #define UNTERMINATED_STRING_ERROR                                              \
   {                                                                            \
-    char *unterminated = plj_buffer_destroy(buf, NULL);                        \
-    plj_fatal("unterminated string at line %lu near %c%s\n", line, term,       \
+    char *unterminated = sol_buffer_destroy(buf, NULL);                        \
+    sol_fatal("unterminated string at line %lu near %c%s\n", line, term,       \
               unterminated);                                                   \
   }
 
 #define UNTERMINATED_ML_STRING_ERROR                                           \
   {                                                                            \
-    char *unterminated = plj_buffer_destroy(buf, NULL);                        \
-    plj_fatal("unterminated multi-line string at line %lu near [[%s\n", line,  \
+    char *unterminated = sol_buffer_destroy(buf, NULL);                        \
+    sol_fatal("unterminated multi-line string at line %lu near [[%s\n", line,  \
               unterminated);                                                   \
   }
 
-token_t **plj_lex(const char *input, uint64 *tk_num) {
-  list_t *tokens = plj_list_init();
+token_t **sol_lex(const char *input, uint64 *tk_num) {
+  list_t *tokens = sol_list_init();
 
   uint64 line = 1;
   size i = 0;
@@ -80,10 +80,10 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
     if (input[i] == '[' && CAN_PUTC(input) && input[i + 1] == '[') {
       i += 2;
       if (!CAN_PUTC(input)) {
-        plj_fatal("unstarted multi-line string at line %lu\n", line);
+        sol_fatal("unstarted multi-line string at line %lu\n", line);
       }
 
-      buffer_t *buf = plj_buffer_new(16);
+      buffer_t *buf = sol_buffer_new(16);
       while (input[i] != ']') {
         if (input[i] == '\\') {
           i++;
@@ -92,7 +92,7 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
             UNTERMINATED_ML_STRING_ERROR
         }
 
-        plj_buffer_putc(buf, input[i]);
+        sol_buffer_putc(buf, input[i]);
         i++;
       }
 
@@ -101,17 +101,17 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
         UNTERMINATED_ML_STRING_ERROR
 
       if (input[i] != ']')
-        plj_fatal("wrong terminator for multi-line string at line %lu\n", line);
+        sol_fatal("wrong terminator for multi-line string at line %lu\n", line);
 
       i++;
 
       uint64 len;
-      char *txt = plj_buffer_destroy(buf, &len);
+      char *txt = sol_buffer_destroy(buf, &len);
       if (!txt)
-        plj_fatal_internal("duplication of buffer for string returned NULL\n");
-      token_t *tk = plj_token_create(txt, len, PLJ_TK_STRING);
+        sol_fatal_internal("duplication of buffer for string returned NULL\n");
+      token_t *tk = sol_token_create(txt, len, SOL_TK_STRING);
       tk->line = line;
-      plj_list_push(tokens, tk);
+      sol_list_push(tokens, tk);
       continue;
     }
 
@@ -125,9 +125,9 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
         }
         buf[len] = '\0';
         if (strcmp(sym, buf) == 0) {
-          token_t *tk = plj_token_create(sym, len, PLJ_TK_SYMBOL);
+          token_t *tk = sol_token_create(sym, len, SOL_TK_SYMBOL);
           tk->line = line;
-          plj_list_push(tokens, tk);
+          sol_list_push(tokens, tk);
           i += len;
           goto continue_;
         }
@@ -147,9 +147,9 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
           char next = input[i + len];
           if (is_alpha(next) || is_num(next) || next == '_')
             continue;
-          token_t *tk = plj_token_create(kw, len, PLJ_TK_RESERVED);
+          token_t *tk = sol_token_create(kw, len, SOL_TK_RESERVED);
           tk->line = line;
-          plj_list_push(tokens, tk);
+          sol_list_push(tokens, tk);
           i += len;
           goto continue_;
         }
@@ -159,30 +159,30 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
     if (input[i] == '0' && CAN_PUTC(input) && input[i + 1] == 'x') {
       i += 2;
       if (!CAN_PUTC(input))
-        plj_fatal("unstarted hex literal at line %lu\n", line);
+        sol_fatal("unstarted hex literal at line %lu\n", line);
 
-      buffer_t *buf = plj_buffer_new(16);
+      buffer_t *buf = sol_buffer_new(16);
       while (i < strlen(input) && is_hex(input[i])) {
-        plj_buffer_putc(buf, input[i]);
+        sol_buffer_putc(buf, input[i]);
         i++;
       }
 
       uint64 len;
-      char *txt = plj_buffer_destroy(buf, &len);
+      char *txt = sol_buffer_destroy(buf, &len);
       if (!txt)
-        plj_fatal_internal(
+        sol_fatal_internal(
             "duplication of buffer for hexadecimal digit returned NULL\n");
-      token_t *tk = plj_token_create(txt, len, PLJ_TK_HEX_DIGIT);
+      token_t *tk = sol_token_create(txt, len, SOL_TK_HEX_DIGIT);
       tk->line = line;
-      plj_list_push(tokens, tk);
+      sol_list_push(tokens, tk);
       continue;
     }
 
     if (is_num(input[i])) {
-      buffer_t *buf = plj_buffer_new(16);
+      buffer_t *buf = sol_buffer_new(16);
 
       while (CAN_PUTC(input) && is_num(input[i])) {
-        plj_buffer_putc(buf, input[i]);
+        sol_buffer_putc(buf, input[i]);
         i++;
       }
 
@@ -190,14 +190,14 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
         if (input[i] != '.')
           goto push;
 
-        plj_buffer_putc(buf, input[i]);
+        sol_buffer_putc(buf, input[i]);
 
         i++;
         if (!INBOUNDS(input))
           goto push;
 
         while (CAN_PUTC(input) && is_num(input[i])) {
-          plj_buffer_putc(buf, input[i]);
+          sol_buffer_putc(buf, input[i]);
           i++;
         }
       } else
@@ -205,12 +205,12 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
 
     push: {
       uint64 len;
-      char *txt = plj_buffer_destroy(buf, &len);
+      char *txt = sol_buffer_destroy(buf, &len);
       if (!txt)
-        plj_fatal_internal("duplication of buffer for digit returned NULL\n");
-      token_t *tk = plj_token_create(txt, len, PLJ_TK_DIGIT);
+        sol_fatal_internal("duplication of buffer for digit returned NULL\n");
+      token_t *tk = sol_token_create(txt, len, SOL_TK_DIGIT);
       tk->line = line;
-      plj_list_push(tokens, tk);
+      sol_list_push(tokens, tk);
       continue;
     }
     }
@@ -220,11 +220,11 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
       i++;
 
       if (!INBOUNDS(input))
-        plj_fatal("unterminated string at line %lu near %c\n", line, term);
+        sol_fatal("unterminated string at line %lu near %c\n", line, term);
 
-      buffer_t *buf = plj_buffer_new(16);
+      buffer_t *buf = sol_buffer_new(16);
       while (CAN_PUTC(input) && input[i] != term && input[i] != '\n') {
-        plj_buffer_putc(buf, input[i]);
+        sol_buffer_putc(buf, input[i]);
         i++;
       }
       if (input[i] == term)
@@ -236,52 +236,52 @@ token_t **plj_lex(const char *input, uint64 *tk_num) {
         UNTERMINATED_STRING_ERROR;
 
       uint64 len;
-      char *txt = plj_buffer_destroy(buf, &len);
+      char *txt = sol_buffer_destroy(buf, &len);
       if (!txt)
-        plj_fatal_internal("duplication of buffer for string returned NULL\n");
-      token_t *tk = plj_token_create(txt, len, PLJ_TK_STRING);
+        sol_fatal_internal("duplication of buffer for string returned NULL\n");
+      token_t *tk = sol_token_create(txt, len, SOL_TK_STRING);
       tk->line = line;
-      plj_list_push(tokens, tk);
+      sol_list_push(tokens, tk);
       continue;
     }
 
     if (is_alpha(input[i]) || input[i] == '_') {
-      buffer_t *buf = plj_buffer_new(16);
-      plj_buffer_putc(buf, input[i]);
+      buffer_t *buf = sol_buffer_new(16);
+      sol_buffer_putc(buf, input[i]);
 
       if (CAN_PUTC(input)) {
         i++;
       } else {
         char buf[2] = {input[i], '\0'};
-        token_t *tk = plj_token_create(strdup(buf), 2, PLJ_TK_IDENT);
+        token_t *tk = sol_token_create(strdup(buf), 2, SOL_TK_IDENT);
         tk->line = line;
-        plj_list_push(tokens, tk);
+        sol_list_push(tokens, tk);
         continue;
       }
 
       while (CAN_PUTC(input) &&
              (is_alpha(input[i]) || is_num(input[i]) || input[i] == '_')) {
-        plj_buffer_putc(buf, input[i]);
+        sol_buffer_putc(buf, input[i]);
         i++;
       }
 
       uint64 len;
-      char *txt = plj_buffer_destroy(buf, &len);
+      char *txt = sol_buffer_destroy(buf, &len);
       if (!txt)
-        plj_fatal_internal(
+        sol_fatal_internal(
             "duplication of buffer for identifier returns NULL\n");
-      token_t *tk = plj_token_create(txt, len, PLJ_TK_IDENT);
+      token_t *tk = sol_token_create(txt, len, SOL_TK_IDENT);
       tk->line = line;
-      plj_list_push(tokens, tk);
+      sol_list_push(tokens, tk);
       continue;
     }
 
-    plj_fatal("unrecognized character '%c' in line %lu\n", input[i], line);
+    sol_fatal("unrecognized character '%c' in line %lu\n", input[i], line);
 
   continue_: {}
   }
 
-  plj_list_push(tokens, plj_token_eof());
+  sol_list_push(tokens, sol_token_eof());
 
   if (tk_num)
     *tk_num = tokens->num;

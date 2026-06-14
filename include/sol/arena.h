@@ -1,10 +1,10 @@
-#ifndef PLUJA_INCLUDE__ARENA_H
-#define PLUJA_INCLUDE__ARENA_H
+#ifndef SOL_INCLUDE__ARENA_H
+#define SOL_INCLUDE__ARENA_H
 
 // --- LICENSE FOR ARENA ---
 // GitHub: https://github.com/tsoding/arena
 // Note: I slightly modified it to use my `size` type and
-// the naming (snake_case_t) of types I use across pluja.
+// the naming (snake_case_t) of types I use across sol.
 //
 // Copyright 2022 Alexey Kutepov <reximkut@gmail.com>
 
@@ -27,7 +27,7 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "pluja/types.h"
+#include "sol/types.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -449,4 +449,4 @@ void arena_trim(Arena *a) {
   a->end->next = NULL;
 }
 
-#endif // !PLUJA_INCLUDE__ARENA_H
+#endif // !SOL_INCLUDE__ARENA_H

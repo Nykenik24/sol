@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 4.3.3)
-project(pluja LANGUAGES C CXX)
+project(sol LANGUAGES C CXX)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -16,6 +16,6 @@ file(GLOB_RECURSE SOURCES
   "src/*.cpp"
 )
 
-add_executable(pluja ${SOURCES})
+add_executable(sol ${SOURCES})
 
-target_include_directories(pluja PRIVATE include)
+target_include_directories(sol PRIVATE include)

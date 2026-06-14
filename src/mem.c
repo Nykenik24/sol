@@ -1,8 +1,8 @@
-#include "pluja/mem.h"
-#include "pluja/types.h"
+#include "sol/mem.h"
+#include "sol/types.h"
 #include <stdlib.h>
 
-list_t *plj_list_init() {
+list_t *sol_list_init() {
   list_t *list = malloc(sizeof(list_t));
 
   list->cap = 16;
@@ -14,7 +14,7 @@ list_t *plj_list_init() {
 
 #define LIST_OOM(LIST) (LIST->num >= LIST->cap)
 
-void plj_list_push(list_t *list, void *ptr) {
+void sol_list_push(list_t *list, void *ptr) {
   if (LIST_OOM(list)) {
     while (LIST_OOM(list)) {
       list->cap *= 2;
@@ -24,7 +24,7 @@ void plj_list_push(list_t *list, void *ptr) {
   list->raw[list->num++] = ptr;
 }
 
-void plj_list_free(list_t *list) {
+void sol_list_free(list_t *list) {
   if (!list)
     return;
 

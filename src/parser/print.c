@@ -1,6 +1,6 @@
-#include "pluja/lexer/token.h"
-#include "pluja/parser/node.h"
-#include "pluja/parser/parser.h"
+#include "sol/lexer/token.h"
+#include "sol/parser/node.h"
+#include "sol/parser/parser.h"
 #include <stdio.h>
 
 static void indent(int depth) {
@@ -23,7 +23,7 @@ static void print_node(node_t *node, int depth) {
   }
 
   switch (node->kind) {
-  case PLJ_NODE_BLOCK:
+  case SOL_NODE_BLOCK:
     indent(depth);
     puts("block");
     print_nodes(node->u.block.stmts, node->u.block.n, depth + 1);
@@ -31,84 +31,84 @@ static void print_node(node_t *node, int depth) {
       print_node(node->u.block.retstat, depth + 1);
     break;
 
-  case PLJ_NODE_DO:
+  case SOL_NODE_DO:
     indent(depth);
     puts("do");
     print_nodes(node->u.block.stmts, node->u.block.n, depth + 1);
     break;
 
-  case PLJ_NODE_BREAK:
+  case SOL_NODE_BREAK:
     indent(depth);
     puts("break");
     break;
 
-  case PLJ_NODE_RETURN:
+  case SOL_NODE_RETURN:
     indent(depth);
     puts("return");
     print_nodes(node->u.ret.explist, node->u.ret.n, depth + 1);
     break;
 
-  case PLJ_NODE_GOTO:
+  case SOL_NODE_GOTO:
     indent(depth);
     printf("goto %s\n", node->u.str);
     break;
 
-  case PLJ_NODE_LABEL:
+  case SOL_NODE_LABEL:
     indent(depth);
     printf("::%s::\n", node->u.str);
     break;
 
-  case PLJ_NODE_NIL:
+  case SOL_NODE_NIL:
     indent(depth);
     puts("nil");
     break;
-  case PLJ_NODE_TRUE:
+  case SOL_NODE_TRUE:
     indent(depth);
     puts("true");
     break;
-  case PLJ_NODE_FALSE:
+  case SOL_NODE_FALSE:
     indent(depth);
     puts("false");
     break;
-  case PLJ_NODE_VARARG:
+  case SOL_NODE_VARARG:
     indent(depth);
     puts("...");
     break;
 
-  case PLJ_NODE_DIGIT:
+  case SOL_NODE_DIGIT:
     indent(depth);
     printf("digit(%g)\n", node->u.num);
     break;
 
-  case PLJ_NODE_HEX_DIGIT:
+  case SOL_NODE_HEX_DIGIT:
     indent(depth);
     printf("hex(%g)\n", node->u.num);
     break;
 
-  case PLJ_NODE_STRING:
+  case SOL_NODE_STRING:
     indent(depth);
     printf("string(%s)\n", node->u.str);
     break;
 
-  case PLJ_NODE_IDENT:
+  case SOL_NODE_IDENT:
     indent(depth);
     printf("ident(%s)\n", node->u.str);
     break;
 
-  case PLJ_NODE_BINOP:
+  case SOL_NODE_BINOP:
     indent(depth);
     printf("binop(%s)\n", node->u.binop.op->txt);
     print_node(node->u.binop.left, depth + 1);
     print_node(node->u.binop.right, depth + 1);
     break;
 
-  case PLJ_NODE_UNOP:
+  case SOL_NODE_UNOP:
     indent(depth);
     printf("unop(%s)\n", node->u.unop.op->txt);
     print_node(node->u.unop.operand, depth + 1);
     break;
 
-  case PLJ_NODE_WHILE:
+  case SOL_NODE_WHILE:
     indent(depth);
     puts("while");
     indent(depth + 1);
@@ -119,7 +119,7 @@ static void print_node(node_t *node, int depth) {
     print_node(node->u.while_loop.body, depth + 2);
     break;
 
-  case PLJ_NODE_REPEAT:
+  case SOL_NODE_REPEAT:
     indent(depth);
     puts("repeat");
     indent(depth + 1);
@@ -130,7 +130,7 @@ static void print_node(node_t *node, int depth) {
     print_node(node->u.repeat_loop.cond, depth + 2);
     break;
 
-  case PLJ_NODE_IF:
+  case SOL_NODE_IF:
     indent(depth);
     puts("if");
     for (size i = 0; i < node->u.if_stmt.n; i++) {
@@ -148,7 +148,7 @@ static void print_node(node_t *node, int depth) {
     }
     break;
 
-  case PLJ_NODE_FOR_NUM:
+  case SOL_NODE_FOR_NUM:
     indent(depth);
     printf("for_num(%s)\n", node->u.for_num.name);
     indent(depth + 1);
@@ -167,7 +167,7 @@ static void print_node(node_t *node, int depth) {
     print_node(node->u.for_num.body, depth + 2);
     break;
 
-  case PLJ_NODE_FOR_IN:
+  case SOL_NODE_FOR_IN:
     indent(depth);
     fputs("for_in(", stdout);
     for (size i = 0; i < node->u.for_in.name_n; i++) {
@@ -184,7 +184,7 @@ static void print_node(node_t *node, int depth) {
     print_node(node->u.for_in.body, depth + 2);
     break;
 
-  case PLJ_NODE_ASSIGN:
+  case SOL_NODE_ASSIGN:
     indent(depth);
     puts("assign");
     indent(depth + 1);
@@ -195,9 +195,9 @@ static void print_node(node_t *node, int depth) {
     print_nodes(node->u.assign.values, node->u.assign.value_n, depth + 2);
     break;
 
-  case PLJ_NODE_LOCAL:
-  case PLJ_NODE_GLOBAL:
-  case PLJ_NODE_DECL:
+  case SOL_NODE_LOCAL:
+  case SOL_NODE_GLOBAL:
+  case SOL_NODE_DECL:
     indent(depth);
     printf("%s\n", node->u.decl.is_global ? "global" : "local");
     for (size i = 0; i < node->u.decl.n; i++) {
@@ -214,15 +214,15 @@ static void print_node(node_t *node, int depth) {
     }
     break;
 
-  case PLJ_NODE_GLOBAL_WILDCARD:
+  case SOL_NODE_GLOBAL_WILDCARD:
     indent(depth);
     puts("global *");
     break;
 
-  case PLJ_NODE_FUNC:
-  case PLJ_NODE_LOCAL_FUNC:
+  case SOL_NODE_FUNC:
+  case SOL_NODE_LOCAL_FUNC:
     indent(depth);
-    if (node->kind == PLJ_NODE_LOCAL_FUNC)
+    if (node->kind == SOL_NODE_LOCAL_FUNC)
       fputs("local function ", stdout);
     else
       fputs("function ", stdout);
@@ -237,7 +237,7 @@ static void print_node(node_t *node, int depth) {
     print_node(node->u.func.body, depth + 1);
     break;
 
-  case PLJ_NODE_FUNC_DEF:
+  case SOL_NODE_FUNC_DEF:
     indent(depth);
     fputs("funcbody(", stdout);
     for (size i = 0; i < node->u.funcbody.param_n; i++) {
@@ -256,7 +256,7 @@ static void print_node(node_t *node, int depth) {
     print_node(node->u.funcbody.body, depth + 1);
     break;
 
-  case PLJ_NODE_FUNC_CALL:
+  case SOL_NODE_FUNC_CALL:
     indent(depth);
     puts("call");
     indent(depth + 1);
@@ -269,7 +269,7 @@ static void print_node(node_t *node, int depth) {
     }
     break;
 
-  case PLJ_NODE_METHOD_CALL:
+  case SOL_NODE_METHOD_CALL:
     indent(depth);
     printf("method_call(:%s)\n", node->u.method_call.method);
     indent(depth + 1);
@@ -283,7 +283,7 @@ static void print_node(node_t *node, int depth) {
     }
     break;
 
-  case PLJ_NODE_INDEX:
+  case SOL_NODE_INDEX:
     indent(depth);
     puts("index");
     indent(depth + 1);
@@ -294,7 +294,7 @@ static void print_node(node_t *node, int depth) {
     print_node(node->u.index.key, depth + 2);
     break;
 
-  case PLJ_NODE_FIELD:
+  case SOL_NODE_FIELD:
     indent(depth);
     printf("field(.%s)\n", node->u.field.name);
     indent(depth + 1);
@@ -302,13 +302,13 @@ static void print_node(node_t *node, int depth) {
     print_node(node->u.field.target, depth + 2);
     break;
 
-  case PLJ_NODE_TABLE:
+  case SOL_NODE_TABLE:
     indent(depth);
     puts("table");
     print_nodes(node->u.table.fields, node->u.table.n, depth + 1);
     break;
 
-  case PLJ_NODE_TABLE_FIELD:
+  case SOL_NODE_TABLE_FIELD:
     indent(depth);
     puts("table field");
     indent(depth + 1);
@@ -319,7 +319,7 @@ static void print_node(node_t *node, int depth) {
     print_node(node->u.table_field.val, depth + 2);
     break;
 
-  case PLJ_NODE_ATTRIB:
+  case SOL_NODE_ATTRIB:
     indent(depth);
     printf("attrib(%s <%s>)\n", node->u.attrib.name, node->u.attrib.attrib);
     break;
@@ -331,7 +331,7 @@ static void print_node(node_t *node, int depth) {
   }
 }
 
-void plj_print_ast(node_t **nodes, size n) {
+void sol_print_ast(node_t **nodes, size n) {
   for (size i = 0; i < n; i++)
     print_node(nodes[i], 0);
 }

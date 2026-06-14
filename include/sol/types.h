@@ -1,5 +1,5 @@
-#ifndef PLUJA_INCLUDE__TYPES_H
-#define PLUJA_INCLUDE__TYPES_H
+#ifndef SOL_INCLUDE__TYPES_H
+#define SOL_INCLUDE__TYPES_H
 
 typedef int bool;
 #define false 0
@@ -12,4 +12,4 @@ typedef unsigned char uint8;
 
 typedef unsigned long size;
 
-#endif // !PLUJA_INCLUDE__TYPES_H
+#endif // !SOL_INCLUDE__TYPES_H
