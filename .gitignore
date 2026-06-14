@@ -11,3 +11,4 @@ lib
 scripts
 *.sol
 vgcore.*
+.poc-*
