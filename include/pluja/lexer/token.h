@@ -7,6 +7,7 @@ typedef enum {
   PLJ_TK_IDENT,
   PLJ_TK_STRING,
   PLJ_TK_DIGIT,
+  PLJ_TK_HEX_DIGIT,
   PLJ_TK_SYMBOL,
   PLJ_TK_RESERVED,
 } token_type_t;
@@ -14,6 +15,7 @@ typedef enum {
 typedef struct {
   char *txt;
   uint64 len;
+  uint64 line;
   token_type_t type;
 } token_t;
 

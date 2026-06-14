@@ -1,4 +1,4 @@
-#include "pluja/buffer.h"
+#include "pluja/mem.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -25,7 +25,7 @@ void plj_buffer_puts(buffer_t *buf, const char *str) {
     buf->buf = realloc(buf->buf, sizeof(char) * buf->cap);
   }
 
-  for (idx_t i = 0; i < len; i++) {
+  for (size i = 0; i < len; i++) {
     buf->buf[buf->num++] = str[i];
   }
 }
@@ -36,11 +36,17 @@ char *plj_buffer_destroy(buffer_t *buf, uint64 *buf_size) {
 
   if (buf->buf) {
     if (buf_size)
-      *buf_size = buf->cap;
-    char *raw = strdup(buf->buf);
+      *buf_size = buf->num;
+
+    char *out = malloc(buf->num + 1);
+    memcpy(out, buf->buf, buf->num);
+    out[buf->num] = '\0';
+
+    free(buf->buf);
     free(buf);
-    return raw;
+    return out;
   }
 
+  free(buf);
   return NULL;
 }

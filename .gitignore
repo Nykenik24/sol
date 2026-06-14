@@ -9,4 +9,5 @@ lib
 
 # misc.
 scripts
-
+*.plj
+vgcore.*

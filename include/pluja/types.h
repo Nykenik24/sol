@@ -10,6 +10,6 @@ typedef unsigned long uint64;
 typedef unsigned short uint16;
 typedef unsigned char uint8;
 
-typedef unsigned long idx_t;
+typedef unsigned long size;
 
 #endif // !PLUJA_INCLUDE__TYPES_H
