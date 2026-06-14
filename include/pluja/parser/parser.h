@@ -6,7 +6,7 @@
 // Returns a list with the allocated nodes.
 //
 // Pass an unsigned long by reference to node_num to
-// get the numer of nodes in the node list. It
+// get the number of nodes in the node list. It
 // can be NULL if not needed.
 node_t **plj_parse(token_t **tokens, uint64 tk_num, uint64 *node_num);
 
