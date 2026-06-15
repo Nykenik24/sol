@@ -75,7 +75,7 @@ static const char *p_attrib(Token **tokens, size *i, size tk_num) {
 
 static Node *p_explist_into(Token **tokens, size *i, size tk_num, Node ***out,
                             size *out_n) {
-  List *list = sol_list_init();
+  List *list = sol_list_create();
   sol_list_push(list, p_exp(tokens, i, tk_num));
   while (match(",")) {
     skip();
@@ -88,7 +88,7 @@ static Node *p_explist_into(Token **tokens, size *i, size tk_num, Node ***out,
 
 static void p_namelist_into(Token **tokens, size *i, size tk_num,
                             const char ***out, size *out_n) {
-  List *list = sol_list_init();
+  List *list = sol_list_create();
   sol_list_push(list, (void *)expect_name(tokens, i, tk_num));
   while (match(",") && tokens[*i + 1]->type == SOL_TK_IDENT) {
     skip();
@@ -101,7 +101,7 @@ static void p_namelist_into(Token **tokens, size *i, size tk_num,
 static Node *p_funcbody(Token **tokens, size *i, size tk_num) {
   expect(tokens, i, tk_num, "(");
 
-  List *params = sol_list_init();
+  List *params = sol_list_create();
   int has_vararg = 0;
   const char *vararg_name = NULL;
 
@@ -147,7 +147,7 @@ static Node *p_funcbody(Token **tokens, size *i, size tk_num) {
 
 static Node *p_table(Token **tokens, size *i, size tk_num) {
   expect(tokens, i, tk_num, "{");
-  List *fields = sol_list_init();
+  List *fields = sol_list_create();
 
   while (!match("}")) {
     node_alloc(field);
@@ -194,7 +194,7 @@ static Node *p_table(Token **tokens, size *i, size tk_num) {
 }
 
 static Node **p_args(Token **tokens, size *i, size tk_num, size *arg_n) {
-  List *args = sol_list_init();
+  List *args = sol_list_create();
 
   if (match("(")) {
     skip();
@@ -426,7 +426,7 @@ static Node *p_exp(Token **tokens, size *i, size tk_num) {
 }
 
 static Node *p_block(Token **tokens, size *i, size tk_num) {
-  List *list = sol_list_init();
+  List *list = sol_list_create();
   Node *retstat = NULL;
 
   while (!at_end() && !match("end") && !match("else") && !match("elseif") &&
@@ -435,7 +435,7 @@ static Node *p_block(Token **tokens, size *i, size tk_num) {
       skip();
       retstat = malloc(sizeof(Node));
       retstat->kind = SOL_NODE_RETURN;
-      List *rets = sol_list_init();
+      List *rets = sol_list_create();
       if (!at_end() && !match(";") && !match("end") && !match("else") &&
           !match("elseif") && !match("until")) {
         sol_list_push(rets, p_exp(tokens, i, tk_num));
@@ -533,8 +533,8 @@ static Node *p_stmt(Token **tokens, size *i, size tk_num) {
 
   if (match("if")) {
     skip();
-    List *conds = sol_list_init();
-    List *bodies = sol_list_init();
+    List *conds = sol_list_create();
+    List *bodies = sol_list_create();
 
     sol_list_push(conds, p_exp(tokens, i, tk_num));
     expect(tokens, i, tk_num, "then");
@@ -591,7 +591,7 @@ static Node *p_stmt(Token **tokens, size *i, size tk_num) {
       return n;
     }
 
-    List *names = sol_list_init();
+    List *names = sol_list_create();
     sol_list_push(names, (void *)first);
     while (match(",")) {
       skip();
@@ -616,7 +616,7 @@ static Node *p_stmt(Token **tokens, size *i, size tk_num) {
 
   if (match("function")) {
     skip();
-    List *path = sol_list_init();
+    List *path = sol_list_create();
     sol_list_push(path, (void *)expect_name(tokens, i, tk_num));
     while (match(".")) {
       skip();
@@ -666,8 +666,8 @@ static Node *p_stmt(Token **tokens, size *i, size tk_num) {
       return n;
     }
 
-    List *names = sol_list_init();
-    List *attribs = sol_list_init();
+    List *names = sol_list_create();
+    List *attribs = sol_list_create();
 
     const char *first_attrib = p_attrib(tokens, i, tk_num);
     const char *first_name = expect_name(tokens, i, tk_num);
@@ -708,7 +708,7 @@ static Node *p_stmt(Token **tokens, size *i, size tk_num) {
   Node *first = p_prefixexp(tokens, i, tk_num);
 
   if (match("=") || match(",")) {
-    List *targets = sol_list_init();
+    List *targets = sol_list_create();
     sol_list_push(targets, first);
     while (match(",")) {
       skip();
@@ -736,7 +736,7 @@ static Node *p_stmt(Token **tokens, size *i, size tk_num) {
 }
 
 Node **sol_parse(Token **tokens, uint64 tk_num, uint64 *node_num) {
-  List *nodes = sol_list_init();
+  List *nodes = sol_list_create();
   size i = 0;
 
   Node *root = p_block(tokens, &i, (size)tk_num);

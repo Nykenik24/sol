@@ -2,7 +2,7 @@
 #include "sol/types.h"
 #include <stdlib.h>
 
-List *sol_list_init() {
+List *sol_list_create() {
   List *list = malloc(sizeof(List));
 
   list->cap = 16;

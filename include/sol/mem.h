@@ -32,6 +32,8 @@ typedef struct {
   void **raw;
 } List;
 
+// Create a list.
+List *sol_list_create();
 // Initialize/create a list.
 List *sol_list_init();
 

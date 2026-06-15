@@ -53,7 +53,7 @@ char *kwtable[] = {"function", "repeat", "elseif", "return", "break", "false",
   }
 
 Token **sol_lex(const char *input, uint64 *tk_num) {
-  List *tokens = sol_list_init();
+  List *tokens = sol_list_create();
 
   uint64 line = 1;
   size i = 0;
