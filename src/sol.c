@@ -4,6 +4,7 @@
 #include "sol/parser/node.h"
 #include "sol/parser/parser.h"
 #include "sol/types.h"
+#include "sol/vm/vm.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -37,9 +38,13 @@ int main(int argc, char *argv[]) {
 
   uint64 node_num;
   Node **nodes = sol_parse(tokens, tk_num, &node_num);
-  sol_print_ast(nodes, node_num);
+  // sol_print_ast(nodes, node_num);
+
+  VM *vm = sol_vm_create();
+  sol_vm_exec(vm, nodes, node_num);
 
   sol_cleanup_lex_res(tokens, tk_num);
   sol_cleanup_parse_res(nodes, node_num);
+  sol_vm_destroy(vm);
   return 0;
 }

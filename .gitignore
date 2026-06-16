@@ -12,3 +12,7 @@ scripts
 *.sol
 vgcore.*
 .poc-*
+
+# notes that are too W.I.P to share,
+# or that I just want to keep private.
+/notes/.priv
