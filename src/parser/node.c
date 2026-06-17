@@ -166,7 +166,6 @@ void sol_node_destroy(Node *node) {
   case SOL_NODE_FALSE:
   case SOL_NODE_VARARG:
   case SOL_NODE_BREAK:
-  case SOL_NODE_GLOBAL_WILDCARD:
     break;
   }
 

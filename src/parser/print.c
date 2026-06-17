@@ -214,11 +214,6 @@ static void print_node(Node *node, int depth) {
     }
     break;
 
-  case SOL_NODE_GLOBAL_WILDCARD:
-    indent(depth);
-    puts("global *");
-    break;
-
   case SOL_NODE_FUNC:
   case SOL_NODE_LOCAL_FUNC:
     indent(depth);

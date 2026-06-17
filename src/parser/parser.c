@@ -359,8 +359,8 @@ static Node *p_simple_exp(Token **tokens, size *i, size tk_num) {
     n->u.unop.operand = operand;
     return n;
   }
-  if (match("local") || match("global")) {
-    int is_global = match("global");
+
+  if (match("local")) {
     skip();
 
     if (match("function")) {
@@ -368,11 +368,7 @@ static Node *p_simple_exp(Token **tokens, size *i, size tk_num) {
       const char *name = expect_name(tokens, i, tk_num);
       Node *body = p_funcbody(tokens, i, tk_num);
       node_alloc(n);
-      if (is_global) {
-        n->kind = SOL_NODE_FUNC;
-      } else {
-        n->kind = SOL_NODE_LOCAL_FUNC;
-      }
+      n->kind = SOL_NODE_LOCAL_FUNC;
       n->u.func.path = malloc(sizeof(char *));
       n->u.func.path[0] = name;
       n->u.func.path_n = 1;
@@ -380,13 +376,10 @@ static Node *p_simple_exp(Token **tokens, size *i, size tk_num) {
       n->u.func.body = body;
       return n;
     }
+  }
 
-    if (is_global && match("*")) {
-      skip();
-      node_alloc(n);
-      n->kind = SOL_NODE_GLOBAL_WILDCARD;
-      return n;
-    }
+  if (match("var")) {
+    skip();
 
     List *names = sol_list_create();
     List *attribs = sol_list_create();
@@ -422,7 +415,7 @@ static Node *p_simple_exp(Token **tokens, size *i, size tk_num) {
     n->u.decl.n = names->num;
     n->u.decl.values = values;
     n->u.decl.value_n = value_n;
-    n->u.decl.is_global = is_global;
+    n->u.decl.is_global = false;
     return n;
   }
 
@@ -703,8 +696,7 @@ static Node *p_stmt(Token **tokens, size *i, size tk_num) {
     return n;
   }
 
-  // varlist '=' explist  |  functioncall
-  if (match("local") || match("global"))
+  if (match("var") || match("local"))
     return p_simple_exp(tokens, i, tk_num);
 
   Node *first = p_prefixexp(tokens, i, tk_num);
