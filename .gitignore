@@ -9,7 +9,7 @@ lib
 
 # misc.
 scripts
-*.sol
+*.sun
 vgcore.*
 .poc-*
 
