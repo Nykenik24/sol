@@ -1,9 +1,4 @@
-#ifndef SOL_INCLUDE__TYPES_H
-#define SOL_INCLUDE__TYPES_H
-
-typedef int bool;
-#define false 0
-#define true 1
+#pragma once
 
 typedef unsigned uint;
 typedef unsigned long uint64;
@@ -15,5 +10,3 @@ typedef short int16;
 typedef char int8;
 
 typedef unsigned long size;
-
-#endif // !SOL_INCLUDE__TYPES_H

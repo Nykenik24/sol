@@ -6,6 +6,7 @@ compile_commands.json
 build
 bin
 lib
+*.out
 
 # misc.
 scripts
