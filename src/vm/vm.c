@@ -4,6 +4,7 @@
 #include "sol/parser/node.h"
 #include "sol/types.h"
 #include "vmnatives.h"
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -141,14 +142,12 @@ void sol_vm_exec(VM *vm, Node **nodes, size n) {
 
 static bool val_as_bool(Value val) {
   switch (val.type) {
-  case VAL_NUMBER:
-  case VAL_STRING:
-  case VAL_NATIVE:
-    return true;
+  case VAL_NIL:
+    return false;
   case VAL_BOOLEAN:
     return val.as.b;
   default:
-    return false;
+    return true;
   }
 }
 
@@ -207,16 +206,25 @@ static Value eval_binop(VM *vm, Node *n) {
     default:
       break;
     }
-  } else {
-    switch (n->u.binop.op->type) {
-    case SOL_TK_KW_AND: {
-      return make_bool(val_as_bool(l) && val_as_bool(r));
-    case SOL_TK_KW_OR:
-      return make_bool(val_as_bool(l) || val_as_bool(r));
-    }
-    default:
-      break;
-    }
+  }
+
+  switch (n->u.binop.op->type) {
+  case SOL_TK_KW_AND: {
+    bool lb = val_as_bool(l);
+    if (!lb)
+      return make_bool(false);
+    else
+      return make_bool(lb && val_as_bool(r));
+  case SOL_TK_KW_OR: {
+    bool lb = val_as_bool(l);
+    if (lb)
+      return make_bool(true);
+    else
+      return make_bool(lb || val_as_bool(r));
+  }
+  }
+  default:
+    break;
   }
 
   sol_fatal("unsupported binary operator '%s' for %s and %s\n",
