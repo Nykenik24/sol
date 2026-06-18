@@ -83,7 +83,7 @@ Mapped kwtable[] = {
     {TokenType::Or, "or"},
 };
 
-TokenStream Lexer::lex(const std::string &input) {
+TokenList Lexer::lex(const std::string &input) {
   std::vector<Token> tokens;
 
   uint64 line = 1;
@@ -291,6 +291,6 @@ TokenStream Lexer::lex(const std::string &input) {
   }
 
   tokens.push_back(Token(TokenType::Eof, ""));
-  return TokenStream(tokens);
+  return tokens;
 }
 }; // namespace sol::lex

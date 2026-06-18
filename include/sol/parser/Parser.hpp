@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "sol/lexer/Lexer.hpp"
+#include "sol/lexer/Token.hpp"
 #include "sol/parser/Node.hpp"
 
 namespace sol::parse {
@@ -13,7 +14,7 @@ class Parser {
 public:
   Parser() = default;
 
-  explicit Parser(lex::TokenStream tokens) : _tokens(std::move(tokens)) {}
+  explicit Parser(lex::TokenList tokens) : _tokens(std::move(tokens)) {}
 
   Parser(const Parser &) = delete;
   Parser &operator=(const Parser &) = delete;
@@ -23,7 +24,7 @@ public:
 
   ~Parser() = default;
 
-  void set_tokens(lex::TokenStream tokens) {
+  void set_tokens(lex::TokenList tokens) {
     _tokens = std::move(tokens);
     _cur = 0;
   }
@@ -76,7 +77,7 @@ private:
   static bool right_assoc(std::string_view op);
 
 private:
-  lex::TokenStream _tokens;
+  lex::TokenList _tokens;
   std::size_t _cur = 0;
 };
 

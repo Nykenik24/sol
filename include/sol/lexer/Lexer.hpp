@@ -13,7 +13,7 @@ public:
   Lexer &operator=(const Lexer &) = default;
   ~Lexer() = default;
 
-  TokenStream lex(const std::string &input);
+  TokenList lex(const std::string &input);
 
 private:
 };

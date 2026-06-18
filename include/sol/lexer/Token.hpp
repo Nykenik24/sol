@@ -91,20 +91,5 @@ private:
   size line = 1;
 };
 
-class TokenStream {
-public:
-  TokenStream() = default;
-
-  explicit TokenStream(std::vector<Token> tokens)
-      : _tokens(std::move(tokens)) {}
-
-  const Token &operator[](size i) const { return _tokens[i]; }
-
-  inline unsigned long size() const { return _tokens.size(); }
-  inline std::vector<Token> all() const { return _tokens; };
-
-private:
-  std::vector<Token> _tokens;
-};
-
+using TokenList = std::vector<Token>;
 } // namespace sol::lex
