@@ -3,7 +3,7 @@
 #include "Token.hpp"
 #include <string>
 
-namespace sol::lex {
+namespace sol::syntax::lex {
 class Lexer {
 public:
   Lexer() = default;
@@ -17,4 +17,4 @@ public:
 
 private:
 };
-} // namespace sol::lex
+} // namespace sol::syntax::lex

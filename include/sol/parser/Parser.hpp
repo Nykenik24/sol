@@ -4,11 +4,11 @@
 #include <string>
 #include <vector>
 
-#include "sol/lexer/Lexer.hpp"
-#include "sol/lexer/Token.hpp"
 #include "sol/parser/Node.hpp"
+#include "sol/parser/lexer/Lexer.hpp"
+#include "sol/parser/lexer/Token.hpp"
 
-namespace sol::parse {
+namespace sol::syntax {
 
 class Parser {
 public:
@@ -81,4 +81,4 @@ private:
   std::size_t _cur = 0;
 };
 
-} // namespace sol::parse
+} // namespace sol::syntax

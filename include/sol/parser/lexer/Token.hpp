@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace sol::lex {
+namespace sol::syntax::lex {
 enum class TokenType {
   Eof,
   Ident,
@@ -92,4 +92,4 @@ private:
 };
 
 using TokenList = std::vector<Token>;
-} // namespace sol::lex
+} // namespace sol::syntax::lex

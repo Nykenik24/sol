@@ -1,4 +1,4 @@
-#include "sol/lexer/Lexer.hpp"
+#include "sol/parser/lexer/Lexer.hpp"
 #include "sol/error.hpp"
 #include <string>
 
@@ -31,7 +31,7 @@ static bool is_hex(uint8 c) {
                  line, buf.c_str());                                           \
   }
 
-namespace sol::lex {
+namespace sol::syntax::lex {
 struct Mapped {
   TokenType tt;
   const std::string txt;
@@ -293,4 +293,4 @@ TokenList Lexer::lex(const std::string &input) {
   tokens.push_back(Token(TokenType::Eof, ""));
   return tokens;
 }
-}; // namespace sol::lex
+}; // namespace sol::syntax::lex

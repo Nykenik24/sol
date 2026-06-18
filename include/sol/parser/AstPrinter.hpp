@@ -4,7 +4,7 @@
 
 #include "sol/parser/Visitor.hpp"
 
-namespace sol::parse::ast {
+namespace sol::syntax::ast {
 
 class AstPrinter final : public Visitor {
 public:
@@ -72,4 +72,4 @@ public:
   void visit(ExprStmt &n) override;
 };
 
-} // namespace sol::parse::ast
+} // namespace sol::syntax::ast

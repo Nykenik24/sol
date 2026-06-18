@@ -5,9 +5,9 @@
 #include <string>
 #include <vector>
 
-#include "sol/lexer/Token.hpp"
+#include "sol/parser/lexer/Token.hpp"
 
-namespace sol::parse::ast {
+namespace sol::syntax::ast {
 
 class Visitor;
 
@@ -455,4 +455,4 @@ public:
 
 #undef SOL_ACCEPT
 
-} // namespace sol::parse::ast
+} // namespace sol::syntax::ast

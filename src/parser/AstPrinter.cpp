@@ -1,6 +1,6 @@
 #include "sol/parser/AstPrinter.hpp"
 
-namespace sol::parse::ast {
+namespace sol::syntax::ast {
 
 void AstPrinter::visit(Ident &n) {
   indent();
@@ -520,4 +520,4 @@ void AstPrinter::visit(Func &n) {
 
 void AstPrinter::visit(ExprStmt &n) { print(*n.expr); }
 
-} // namespace sol::parse::ast
+} // namespace sol::syntax::ast

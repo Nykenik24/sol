@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
 
   auto source = read_file(argv[1]);
 
-  sol::parse::Parser parser;
+  sol::syntax::Parser parser;
   auto root = parser.parse(source);
 
   // sol::parse::ast::AstPrinter printer;

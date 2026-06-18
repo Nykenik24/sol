@@ -31,27 +31,27 @@ class Interpreter {
 public:
   Interpreter();
 
-  void execute(std::unique_ptr<parse::ast::Block> root);
+  void execute(std::unique_ptr<syntax::ast::Block> root);
 
-  Value eval(parse::ast::Node &node);
-  void exec(parse::ast::Node &node);
+  Value eval(syntax::ast::Node &node);
+  void exec(syntax::ast::Node &node);
 
 private:
-  Value eval_ident(parse::ast::Ident &n);
-  Value eval_string(parse::ast::String &n);
-  Value eval_digit(parse::ast::Digit &n);
-  Value eval_hex_digit(parse::ast::HexDigit &n);
-  Value eval_binop(parse::ast::Binop &n);
-  Value eval_unop(parse::ast::Unop &n);
-  Value eval_func_call(parse::ast::FuncCall &n);
+  Value eval_ident(syntax::ast::Ident &n);
+  Value eval_string(syntax::ast::String &n);
+  Value eval_digit(syntax::ast::Digit &n);
+  Value eval_hex_digit(syntax::ast::HexDigit &n);
+  Value eval_binop(syntax::ast::Binop &n);
+  Value eval_unop(syntax::ast::Unop &n);
+  Value eval_func_call(syntax::ast::FuncCall &n);
 
-  void exec_block(parse::ast::Block &n);
-  void exec_assign(parse::ast::Assign &n);
-  void exec_decl(parse::ast::Decl &n);
-  void exec_if(parse::ast::If &n);
-  void exec_while(parse::ast::While &n);
-  void exec_for_num(parse::ast::ForNum &n);
-  void exec_return(parse::ast::Return &n);
+  void exec_block(syntax::ast::Block &n);
+  void exec_assign(syntax::ast::Assign &n);
+  void exec_decl(syntax::ast::Decl &n);
+  void exec_if(syntax::ast::If &n);
+  void exec_while(syntax::ast::While &n);
+  void exec_for_num(syntax::ast::ForNum &n);
+  void exec_return(syntax::ast::Return &n);
 
 private:
   std::shared_ptr<Environment> env;

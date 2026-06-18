@@ -2,7 +2,7 @@
 
 #include "sol/parser/Node.hpp"
 
-namespace sol::parse::ast {
+namespace sol::syntax::ast {
 class Visitor {
 public:
   virtual ~Visitor() = default;
@@ -56,4 +56,4 @@ public:
 
   virtual void visit(ExprStmt &) = 0;
 };
-} // namespace sol::parse::ast
+} // namespace sol::syntax::ast

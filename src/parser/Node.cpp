@@ -1,7 +1,7 @@
 #include "sol/parser/Node.hpp"
 #include "sol/parser/Visitor.hpp"
 
-namespace sol::parse::ast {
+namespace sol::syntax::ast {
 
 #define SOL_IMPL_ACCEPT(T)                                                     \
   void T::accept(Visitor &v) { v.visit(*this); }
@@ -57,4 +57,4 @@ SOL_IMPL_ACCEPT(ExprStmt)
 
 #undef SOL_IMPL_ACCEPT
 
-} // namespace sol::parse::ast
+} // namespace sol::syntax::ast

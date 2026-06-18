@@ -1,14 +1,14 @@
 #include "sol/parser/Parser.hpp"
 #include "sol/error.hpp"
-#include "sol/lexer/Token.hpp"
 #include "sol/parser/Node.hpp"
+#include "sol/parser/lexer/Token.hpp"
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
 
-namespace sol::parse {
+namespace sol::syntax {
 bool Parser::eof() const {
   return _cur >= _tokens.size() || _tokens[_cur].type() == lex::TokenType::Eof;
 }
@@ -621,4 +621,4 @@ std::unique_ptr<ast::Block> Parser::parse() {
   }
   return block;
 }
-} // namespace sol::parse
+} // namespace sol::syntax
