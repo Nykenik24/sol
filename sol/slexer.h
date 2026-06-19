@@ -1,7 +1,10 @@
-#ifndef SOL_INCLUDE__LEXER_TOKEN_H
-#define SOL_INCLUDE__LEXER_TOKEN_H
+#ifndef _INCLUDE_LEXER_H_
+#define _INCLUDE_LEXER_H_
 
-#include "sol/types.h"
+#include "common/arena.h"
+#include "common/types.h"
+#include "common/vector.h"
+
 typedef enum {
   SOL_TK_EOF,
   SOL_TK_IDENT,
@@ -66,23 +69,21 @@ typedef enum {
   SOL_TK_KW_IF,
   SOL_TK_KW_IN,
   SOL_TK_KW_OR,
-} TokenType;
+} token_type_t;
 
 typedef struct {
-  char *txt;
-  uint64 len;
-  uint64 line;
-  TokenType type;
-} Token;
+  ulong line;
+  token_type_t type;
+  const char *txt;
+} token_t;
 
-// Creates a new lexer token.
-Token *sol_token_create(char *txt, uint64 len, TokenType type);
-// Creates a new EOF lexer token (type SOL_TK_EOF and txt is '\0').
-Token *sol_token_eof();
-// Destroys a lexer token.
-void sol_token_destroy(Token *tk);
+typedef struct {
+  vector_t *tokens;
+  arena_t *arena;
+} lexer_t;
 
-// Returns the token type as a string.
-char *sol_ttype_to_str(TokenType type);
+lexer_t *new_lexer();
+void lex(lexer_t *lexer, const char *input);
+void free_lexer(lexer_t *lexer);
 
-#endif // !SOL_INCLUDE__LEXER_TOKEN_H
+#endif // !_INCLUDE_LEXER_H_

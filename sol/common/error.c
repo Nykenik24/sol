@@ -1,4 +1,4 @@
-#include "sol/error.h"
+#include "error.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>

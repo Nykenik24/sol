@@ -12,6 +12,7 @@ scripts
 *.sun
 vgcore.*
 .poc-*
+old/
 
 # notes that are too W.I.P to share,
 # or that I just want to keep private.

@@ -1,36 +1,32 @@
-#include "sol/lexer/lexer.h"
-#include "sol/error.h"
-#include "sol/lexer/token.h"
-#include "sol/mem.h"
-#include "sol/types.h"
+#include "slexer.h"
+#include "common/arena.h"
+#include "common/error.h"
+#include "common/string.h"
+#include "common/types.h"
+#include "common/vector.h"
+#include <stdlib.h>
 #include <string.h>
 
-void sol_cleanup_lex_res(Token **tokens, uint64 tk_num) {
-  for (size i = 0; i < tk_num; i++) {
-    sol_token_destroy(tokens[i]);
-  }
-}
-
-static bool is_alpha(uint8 c) {
+static bool is_alpha(uchar c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
-static bool is_num(uint8 c) { return (c >= '0' && c <= '9'); }
+static bool is_num(uchar c) { return (c >= '0' && c <= '9'); }
 
-static bool is_ws(uint8 c) {
+static bool is_ws(uchar c) {
   return (c == '\n' || c == ' ' || c == '\t' || c == '\r');
 }
 
-static bool is_hex(uint8 c) {
+static bool is_hex(uchar c) {
   return (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || is_num(c);
 }
 
 typedef struct {
-  TokenType tt;
+  token_type_t tt;
   char *txt;
-} Mapped;
+} mapped_t;
 
-Mapped symtable[] = {
+mapped_t symtable[] = {
     {SOL_TK_SYM_VARARG, "..."},   {SOL_TK_SYM_CONCAT, ".."},
     {SOL_TK_SYM_LABEL, "::"},     {SOL_TK_SYM_EQUAL, "=="},
     {SOL_TK_SYM_LEFTSHIFT, "<<"}, {SOL_TK_SYM_RIGHTSHIFT, ">>"},
@@ -49,7 +45,7 @@ Mapped symtable[] = {
     {SOL_TK_SYM_COMMA, ","},      {SOL_TK_SYM_PERIOD, "."},
 };
 
-Mapped kwtable[] = {
+mapped_t kwtable[] = {
     {SOL_TK_KW_FUNCTION, "function"},
     {SOL_TK_KW_EXPORT, "export"},
     {SOL_TK_KW_REPEAT, "repeat"},
@@ -75,28 +71,32 @@ Mapped kwtable[] = {
     {SOL_TK_KW_OR, "or"},
 };
 
-#define INBOUNDS(input) ((i <= strlen(input)) && (i >= 0))
-#define CAN_PUTC(input) ((i + 1 <= strlen(input)) && (i + 1 >= 0))
+#define INBOUNDS(input) (i <= strlen(input))
+#define CAN_PUTC(input) (i + 1 <= strlen(input))
 
-#define UNTERMINATED_STRING_ERROR                                              \
-  {                                                                            \
-    char *unterminated = sol_buffer_destroy(buf, NULL);                        \
-    sol_fatal("unterminated string at line %lu near %c%s\n", line, term,       \
-              unterminated);                                                   \
-  }
+lexer_t *new_lexer() {
+  lexer_t *lexer = (lexer_t *)malloc(sizeof(lexer_t));
+  lexer->arena = new_arena();
+  lexer->tokens = new_vector(sizeof(token_t));
+  return lexer;
+}
 
-#define UNTERMINATED_ML_STRING_ERROR                                           \
-  {                                                                            \
-    char *unterminated = sol_buffer_destroy(buf, NULL);                        \
-    sol_fatal("unterminated multi-line string at line %lu near [[%s\n", line,  \
-              unterminated);                                                   \
-  }
+static token_t *new_token(lexer_t *lexer, const char *txt, token_type_t type) {
+  token_t *tk = (token_t *)arena_alloc(lexer->arena, sizeof(token_t));
+  tk->txt = txt;
+  tk->type = type;
+  return tk;
+}
 
-Token **sol_lex(const char *input, uint64 *tk_num) {
-  List *tokens = sol_list_create();
+static void push_token(lexer_t *lexer, token_t *tk) {
+  push_back(lexer->tokens, tk);
+}
 
-  uint64 line = 1;
-  size i = 0;
+void lex(lexer_t *lexer, const char *input) {
+  lexer->tokens = new_vector(sizeof(token_t));
+
+  ulong line = 1;
+  ulong i = 0;
   while (i < strlen(input)) {
     while (is_ws(input[i])) {
       if (input[i] == '\n')
@@ -123,63 +123,62 @@ Token **sol_lex(const char *input, uint64 *tk_num) {
         sol_fatal("unstarted multi-line string at line %lu\n", line);
       }
 
-      Buffer *buf = sol_buffer_new(16);
+      string_t *buf = new_str();
       while (input[i] != ']') {
         if (input[i] == '\\') {
           i++;
 
           if (!CAN_PUTC(input))
-            UNTERMINATED_ML_STRING_ERROR
+            sol_fatal("unterminated multi-line string at line %lu near [[%s\n",
+                      line, str_cstr(buf));
         }
 
-        sol_buffer_putc(buf, input[i]);
+        str_putc(buf, input[i]);
         i++;
       }
 
       i++;
       if (!CAN_PUTC(input))
-        UNTERMINATED_ML_STRING_ERROR
+        sol_fatal("unterminated multi-line string at line %lu near [[%s\n",
+                  line, str_cstr(buf));
 
       if (input[i] != ']')
         sol_fatal("wrong terminator for multi-line string at line %lu\n", line);
 
       i++;
 
-      uint64 len;
-      char *txt = sol_buffer_destroy(buf, &len);
-      if (!txt)
-        sol_fatal_internal("duplication of buffer for string returned NULL\n");
-      Token *tk = sol_token_create(txt, len, SOL_TK_STRING);
+      ulong len;
+      token_t *tk = new_token(lexer, str_cstr(buf), SOL_TK_STRING);
       tk->line = line;
-      sol_list_push(tokens, tk);
+      push_back(lexer->tokens, tk);
       continue;
     }
 
-    for (size j = 0; j < (sizeof symtable / sizeof symtable[0]); j++) {
-      Mapped sym = symtable[j];
-      uint64 len = strlen(sym.txt);
+    for (ulong j = 0; j < (sizeof symtable / sizeof symtable[0]); j++) {
+      mapped_t sym = symtable[j];
+      ulong len = strlen(sym.txt);
       if ((i + len <= strlen(input)) && (i + len >= 0)) {
         char buf[len + 1];
-        for (size k = 0; k < len; k++) {
+        for (ulong k = 0; k < len; k++) {
           buf[k] = input[i + k];
         }
         buf[len] = '\0';
         if (strcmp(sym.txt, buf) == 0) {
-          Token *tk = sol_token_create(sym.txt, len, sym.tt);
+          token_t *tk = new_token(lexer, sym.txt, sym.tt);
           tk->line = line;
-          sol_list_push(tokens, tk);
           i += len;
+          push_token(lexer, tk);
           goto continue_;
         }
       }
     }
 
-    for (size j = 0; j < (sizeof kwtable / sizeof kwtable[0]); j++) {
-      Mapped kw = kwtable[j];
-      uint64 len = strlen(kw.txt);
+    for (ulong j = 0; j < (sizeof kwtable / sizeof kwtable[0]); j++) {
+      mapped_t kw = kwtable[j];
+      ulong len = strlen(kw.txt);
       if ((i + len <= strlen(input)) && (i + len >= 0)) {
         char buf[len + 1];
-        for (size k = 0; k < len; k++) {
+        for (ulong k = 0; k < len; k++) {
           buf[k] = input[i + k];
         }
         buf[len] = '\0';
@@ -187,10 +186,10 @@ Token **sol_lex(const char *input, uint64 *tk_num) {
           char next = input[i + len];
           if (is_alpha(next) || is_num(next) || next == '_')
             continue;
-          Token *tk = sol_token_create(kw.txt, len, kw.tt);
+          token_t *tk = new_token(lexer, kw.txt, kw.tt);
           tk->line = line;
-          sol_list_push(tokens, tk);
           i += len;
+          push_token(lexer, tk);
           goto continue_;
         }
       }
@@ -201,28 +200,23 @@ Token **sol_lex(const char *input, uint64 *tk_num) {
       if (!CAN_PUTC(input))
         sol_fatal("unstarted hex literal at line %lu\n", line);
 
-      Buffer *buf = sol_buffer_new(16);
+      string_t *buf = new_str();
       while (i < strlen(input) && is_hex(input[i])) {
-        sol_buffer_putc(buf, input[i]);
+        str_putc(buf, input[i]);
         i++;
       }
 
-      uint64 len;
-      char *txt = sol_buffer_destroy(buf, &len);
-      if (!txt)
-        sol_fatal_internal(
-            "duplication of buffer for hexadecimal digit returned NULL\n");
-      Token *tk = sol_token_create(txt, len, SOL_TK_HEX_DIGIT);
+      token_t *tk = new_token(lexer, str_cstr(buf), SOL_TK_HEX_DIGIT);
       tk->line = line;
-      sol_list_push(tokens, tk);
+      push_token(lexer, tk);
       continue;
     }
 
     if (is_num(input[i])) {
-      Buffer *buf = sol_buffer_new(16);
+      string_t *buf = new_str();
 
       while (CAN_PUTC(input) && is_num(input[i])) {
-        sol_buffer_putc(buf, input[i]);
+        str_putc(buf, input[i]);
         i++;
       }
 
@@ -230,89 +224,78 @@ Token **sol_lex(const char *input, uint64 *tk_num) {
         if (input[i] != '.')
           goto push;
 
-        sol_buffer_putc(buf, input[i]);
+        str_putc(buf, input[i]);
 
         i++;
         if (!INBOUNDS(input))
           goto push;
 
         while (CAN_PUTC(input) && is_num(input[i])) {
-          sol_buffer_putc(buf, input[i]);
+          str_putc(buf, input[i]);
           i++;
         }
       } else
         goto push;
 
     push: {
-      uint64 len;
-      char *txt = sol_buffer_destroy(buf, &len);
-      if (!txt)
-        sol_fatal_internal("duplication of buffer for digit returned NULL\n");
-      Token *tk = sol_token_create(txt, len, SOL_TK_DIGIT);
+      token_t *tk = new_token(lexer, str_cstr(buf), SOL_TK_DIGIT);
       tk->line = line;
-      sol_list_push(tokens, tk);
+      push_token(lexer, tk);
       continue;
     }
     }
 
     if (input[i] == '"' || input[i] == '\'') {
-      uint8 term = input[i];
+      uchar term = input[i];
       i++;
 
       if (!INBOUNDS(input))
         sol_fatal("unterminated string at line %lu near %c\n", line, term);
 
-      Buffer *buf = sol_buffer_new(16);
+      string_t *buf = new_str();
       while (CAN_PUTC(input) && input[i] != term && input[i] != '\n') {
-        sol_buffer_putc(buf, input[i]);
+        str_putc(buf, input[i]);
         i++;
       }
       if (input[i] == term)
         i++;
       else
-        UNTERMINATED_STRING_ERROR
+        sol_fatal("unterminated string at line %lu near %c%s\n", line, term,
+                  str_cstr(buf));
 
       if (!INBOUNDS(input))
-        UNTERMINATED_STRING_ERROR;
+        sol_fatal("unterminated string at line %lu near %c%s\n", line, term,
+                  str_cstr(buf));
 
-      uint64 len;
-      char *txt = sol_buffer_destroy(buf, &len);
-      if (!txt)
-        sol_fatal_internal("duplication of buffer for string returned NULL\n");
-      Token *tk = sol_token_create(txt, len, SOL_TK_STRING);
+      token_t *tk = new_token(lexer, str_cstr(buf), SOL_TK_STRING);
       tk->line = line;
-      sol_list_push(tokens, tk);
+      push_token(lexer, tk);
       continue;
     }
 
     if (is_alpha(input[i]) || input[i] == '_') {
-      Buffer *buf = sol_buffer_new(16);
-      sol_buffer_putc(buf, input[i]);
+      string_t *buf = new_str();
+      str_putc(buf, input[i]);
 
       if (CAN_PUTC(input)) {
         i++;
       } else {
-        char buf[2] = {input[i], '\0'};
-        Token *tk = sol_token_create(strdup(buf), 2, SOL_TK_IDENT);
+        char s[2] = {input[i], '\0'};
+        token_t *tk = new_token(lexer, strdup(s), SOL_TK_IDENT);
         tk->line = line;
-        sol_list_push(tokens, tk);
+        push_token(lexer, tk);
         continue;
       }
 
       while (CAN_PUTC(input) &&
              (is_alpha(input[i]) || is_num(input[i]) || input[i] == '_')) {
-        sol_buffer_putc(buf, input[i]);
+        str_putc(buf, input[i]);
         i++;
       }
 
-      uint64 len;
-      char *txt = sol_buffer_destroy(buf, &len);
-      if (!txt)
-        sol_fatal_internal(
-            "duplication of buffer for identifier returns NULL\n");
-      Token *tk = sol_token_create(txt, len, SOL_TK_IDENT);
+      token_t *tk = new_token(lexer, str_cstr(buf), SOL_TK_IDENT);
       tk->line = line;
-      sol_list_push(tokens, tk);
+      push_token(lexer, tk);
       continue;
     }
 
@@ -321,10 +304,6 @@ Token **sol_lex(const char *input, uint64 *tk_num) {
   continue_: {}
   }
 
-  sol_list_push(tokens, sol_token_eof());
-
-  if (tk_num)
-    *tk_num = tokens->num;
-
-  return (Token **)(tokens->raw);
+  char eof[1] = {'\0'};
+  push_token(lexer, new_token(lexer, eof, SOL_TK_EOF));
 }

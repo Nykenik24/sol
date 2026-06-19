@@ -1,5 +1,5 @@
-#ifndef SOL_INCLUDE__ERROR_H
-#define SOL_INCLUDE__ERROR_H
+#ifndef _INCLUDE_COMMON_ERROR_H_
+#define _INCLUDE_COMMON_ERROR_H_
 
 // Print and exit with code 1.
 void sol_fatal(const char *restrict fmt, ...);
@@ -8,4 +8,4 @@ void sol_fatal(const char *restrict fmt, ...);
 // about, well, the fact it's internal.
 void sol_fatal_internal(const char *restrict fmt, ...);
 
-#endif // !SOL_INCLUDE__ERROR_H
+#endif // !_INCLUDE_COMMON_ERROR_H_

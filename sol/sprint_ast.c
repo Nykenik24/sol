@@ -1,6 +1,7 @@
-#include "sol/lexer/token.h"
-#include "sol/parser/node.h"
-#include "sol/parser/parser.h"
+#include "common/types.h"
+#include "slexer.h"
+#include "snode.h"
+#include "sparser.h"
 #include <stdio.h>
 
 static void indent(int depth) {
@@ -8,14 +9,14 @@ static void indent(int depth) {
     fputs("  ", stdout);
 }
 
-static void print_node(Node *node, int depth);
+static void print_node(node_t *node, int depth);
 
-static void print_nodes(Node **nodes, size n, int depth) {
-  for (size i = 0; i < n; i++)
+static void print_nodes(node_t **nodes, ulong n, int depth) {
+  for (ulong i = 0; i < n; i++)
     print_node(nodes[i], depth);
 }
 
-static void print_node(Node *node, int depth) {
+static void print_node(node_t *node, int depth) {
   if (!node) {
     indent(depth);
     puts("(null)");
@@ -133,7 +134,7 @@ static void print_node(Node *node, int depth) {
   case SOL_NODE_IF:
     indent(depth);
     puts("if");
-    for (size i = 0; i < node->u.if_stmt.n; i++) {
+    for (ulong i = 0; i < node->u.if_stmt.n; i++) {
       indent(depth + 1);
       printf("%s:\n", i == 0 ? "cond" : "elseif");
       print_node(node->u.if_stmt.conds[i], depth + 2);
@@ -170,7 +171,7 @@ static void print_node(Node *node, int depth) {
   case SOL_NODE_FOR_IN:
     indent(depth);
     fputs("for_in(", stdout);
-    for (size i = 0; i < node->u.for_in.name_n; i++) {
+    for (ulong i = 0; i < node->u.for_in.name_n; i++) {
       fputs(node->u.for_in.names[i], stdout);
       if (i + 1 < node->u.for_in.name_n)
         fputs(", ", stdout);
@@ -199,9 +200,11 @@ static void print_node(Node *node, int depth) {
   case SOL_NODE_GLOBAL:
   case SOL_NODE_DECL:
     indent(depth);
-    printf("%s\n", node->u.decl.is_global ? "global" : "local");
-    for (size i = 0; i < node->u.decl.n; i++) {
-      indent(depth + 1);
+    printf("var\n");
+    indent(depth + 1);
+    puts("names:");
+    for (ulong i = 0; i < node->u.decl.n; i++) {
+      indent(depth + 2);
       if (node->u.decl.attribs && node->u.decl.attribs[i])
         printf("%s <%s>\n", node->u.decl.names[i], node->u.decl.attribs[i]);
       else
@@ -221,7 +224,7 @@ static void print_node(Node *node, int depth) {
       fputs("local function ", stdout);
     else
       fputs("function ", stdout);
-    for (size i = 0; i < node->u.func.path_n; i++) {
+    for (ulong i = 0; i < node->u.func.path_n; i++) {
       fputs(node->u.func.path[i], stdout);
       if (i + 1 < node->u.func.path_n)
         fputs(".", stdout);
@@ -235,8 +238,8 @@ static void print_node(Node *node, int depth) {
   case SOL_NODE_FUNC_DEF:
     indent(depth);
     fputs("funcbody(", stdout);
-    for (size i = 0; i < node->u.funcbody.param_n; i++) {
-      fputs((const char *)node->u.funcbody.params[i], stdout);
+    for (ulong i = 0; i < node->u.funcbody.param_n; i++) {
+      fputs(node->u.funcbody.params[i], stdout);
       if (i + 1 < node->u.funcbody.param_n)
         fputs(", ", stdout);
     }
@@ -326,7 +329,4 @@ static void print_node(Node *node, int depth) {
   }
 }
 
-void sol_print_ast(Node **nodes, size n) {
-  for (size i = 0; i < n; i++)
-    print_node(nodes[i], 0);
-}
+void print_ast(node_t *root) { print_node(root, 0); }
