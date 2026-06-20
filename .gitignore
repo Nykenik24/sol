@@ -12,6 +12,7 @@ lib
 scripts
 *.sun
 vgcore.*
+massif.*
 .poc-*
 old/
 
