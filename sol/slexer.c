@@ -81,9 +81,25 @@ lexer_t *new_lexer() {
   return lexer;
 }
 
+void free_lexer(lexer_t *lexer) {
+  if (!lexer)
+    return;
+  free_arena(lexer->arena);
+  free_vector(lexer->tokens);
+
+  free(lexer);
+}
+
+static char *arena_strdup(arena_t *arena, const char *s) {
+  size_t len = strlen(s) + 1;
+  char *copy = (char *)arena_alloc(arena, len);
+  memcpy(copy, s, len);
+  return copy;
+}
+
 static token_t *new_token(lexer_t *lexer, const char *txt, token_type_t type) {
   token_t *tk = (token_t *)arena_alloc(lexer->arena, sizeof(token_t));
-  tk->txt = txt;
+  tk->txt = arena_strdup(lexer->arena, txt);
   tk->type = type;
   return tk;
 }
@@ -214,6 +230,7 @@ void lex(lexer_t *lexer, const char *input) {
 
     if (is_num(input[i])) {
       string_t *buf = new_str();
+      token_type_t kind = SOL_TK_INT;
 
       while (CAN_PUTC(input) && is_num(input[i])) {
         str_putc(buf, input[i]);
@@ -224,6 +241,7 @@ void lex(lexer_t *lexer, const char *input) {
         if (input[i] != '.')
           goto push;
 
+        kind = SOL_TK_FLOAT;
         str_putc(buf, input[i]);
 
         i++;
@@ -238,7 +256,7 @@ void lex(lexer_t *lexer, const char *input) {
         goto push;
 
     push: {
-      token_t *tk = new_token(lexer, str_cstr(buf), SOL_TK_DIGIT);
+      token_t *tk = new_token(lexer, str_cstr(buf), kind);
       tk->line = line;
       push_token(lexer, tk);
       continue;

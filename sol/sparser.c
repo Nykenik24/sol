@@ -11,12 +11,19 @@
 parser_t *new_parser(lexer_t *lexer) {
   parser_t *parser = malloc(sizeof(parser_t));
   parser->arena = new_arena();
-  parser->nodes = new_vector(sizeof(node_t));
   parser->ntoken = vector_size(lexer->tokens);
   parser->i = 0;
 
   parser->lexer = lexer;
   return parser;
+}
+
+void free_parser(parser_t *parser) {
+  if (!parser)
+    return;
+  free_arena(parser->arena);
+
+  free(parser);
 }
 
 static node_t *new_node(parser_t *parser) {
@@ -367,9 +374,16 @@ static node_t *p_simple_exp(parser_t *parser) {
     skip();
     return n;
   }
-  if (cur_type() == SOL_TK_DIGIT) {
+  if (cur_type() == SOL_TK_INT) {
     node_alloc(n);
-    n->kind = SOL_NODE_DIGIT;
+    n->kind = SOL_NODE_INT;
+    n->u.num = atof(cur_txt());
+    skip();
+    return n;
+  }
+  if (cur_type() == SOL_TK_FLOAT) {
+    node_alloc(n);
+    n->kind = SOL_NODE_FLOAT;
     n->u.num = atof(cur_txt());
     skip();
     return n;
@@ -761,9 +775,7 @@ static node_t *p_stmt(parser_t *parser) {
     const char **name_arr = nv_to_str_array(parser, names, &name_n);
     const char **attrib_arr = nv_to_str_array(parser, attribs, &attrib_n);
 
-    if (name_n > value_n) {
-      sol_fatal("less values than names in declaration\n");
-    } else if (name_n < value_n) {
+    if (name_n < value_n) {
       sol_fatal("less names than values in declaration\n");
     }
 
@@ -813,8 +825,7 @@ static node_t *p_stmt(parser_t *parser) {
 void parse(parser_t *parser) {
   parser->ntoken = vector_size(parser->lexer->tokens);
   parser->i = 0;
-  parser->nodes = new_vector(sizeof(node_t *));
 
   node_t *root = p_block(parser);
-  push_back(parser->nodes, &root);
+  parser->ast = root;
 }

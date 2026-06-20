@@ -5,41 +5,41 @@
 #include "slexer.h"
 
 typedef enum node_kind_t {
-  SOL_NODE_IDENT,
-  SOL_NODE_STRING,
-  SOL_NODE_DIGIT,
-  SOL_NODE_HEX_DIGIT,
-  SOL_NODE_NIL,
-  SOL_NODE_TRUE,
-  SOL_NODE_FALSE,
-  SOL_NODE_VARARG,
-  SOL_NODE_BINOP,
-  SOL_NODE_UNOP,
-  SOL_NODE_BREAK,
-  SOL_NODE_GOTO,
-  SOL_NODE_LABEL,
-  SOL_NODE_BLOCK,
-  SOL_NODE_DO,
-  SOL_NODE_WHILE,
-  SOL_NODE_REPEAT,
-  SOL_NODE_IF,
-  SOL_NODE_FOR_NUM,
-  SOL_NODE_FOR_IN,
-  SOL_NODE_RETURN,
-  SOL_NODE_ASSIGN,
-  SOL_NODE_LOCAL,
-  SOL_NODE_GLOBAL,
-  SOL_NODE_FUNC,
-  SOL_NODE_LOCAL_FUNC,
-  SOL_NODE_FUNC_DEF,
-  SOL_NODE_FUNC_CALL,
-  SOL_NODE_METHOD_CALL,
-  SOL_NODE_INDEX,
-  SOL_NODE_FIELD,
-  SOL_NODE_TABLE,
-  SOL_NODE_ATTRIB,
-  SOL_NODE_DECL,
-  SOL_NODE_TABLE_FIELD,
+  SOL_NODE_IDENT,       // expr
+  SOL_NODE_STRING,      // expr
+  SOL_NODE_INT,         // expr
+  SOL_NODE_FLOAT,       // expr
+  SOL_NODE_HEX_DIGIT,   // expr
+  SOL_NODE_NIL,         // expr
+  SOL_NODE_TRUE,        // expr
+  SOL_NODE_FALSE,       // expr
+  SOL_NODE_VARARG,      // expr
+  SOL_NODE_BINOP,       // expr
+  SOL_NODE_UNOP,        // expr
+  SOL_NODE_BREAK,       // stmt
+  SOL_NODE_GOTO,        // stmt
+  SOL_NODE_LABEL,       // stmt
+  SOL_NODE_BLOCK,       // block
+  SOL_NODE_DO,          // block
+  SOL_NODE_WHILE,       // stmt
+  SOL_NODE_REPEAT,      // stmt
+  SOL_NODE_IF,          // stmt
+  SOL_NODE_FOR_NUM,     // stmt
+  SOL_NODE_FOR_IN,      // stmt
+  SOL_NODE_RETURN,      // stmt
+  SOL_NODE_ASSIGN,      // expr
+  SOL_NODE_LOCAL,       // stmt
+  SOL_NODE_FUNC,        // stmt
+  SOL_NODE_LOCAL_FUNC,  // expr
+  SOL_NODE_FUNC_DEF,    // stmt
+  SOL_NODE_FUNC_CALL,   // expr
+  SOL_NODE_METHOD_CALL, // expr
+  SOL_NODE_INDEX,       // expr
+  SOL_NODE_FIELD,       // expr
+  SOL_NODE_TABLE,       // expr
+  SOL_NODE_ATTRIB,      // only appears inside decl
+  SOL_NODE_DECL,        // stmt
+  SOL_NODE_TABLE_FIELD, // only appears inside table
 } node_kind_t;
 
 typedef struct node_t {

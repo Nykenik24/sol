@@ -5,7 +5,7 @@
 #include "snode.h"
 
 typedef struct {
-  vector_t *nodes;
+  node_t *ast;
   arena_t *arena;
   ulong ntoken;
   ulong i;

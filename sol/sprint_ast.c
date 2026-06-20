@@ -76,7 +76,7 @@ static void print_node(node_t *node, int depth) {
     puts("...");
     break;
 
-  case SOL_NODE_DIGIT:
+  case SOL_NODE_INT:
     indent(depth);
     printf("digit(%g)\n", node->u.num);
     break;
@@ -197,7 +197,6 @@ static void print_node(node_t *node, int depth) {
     break;
 
   case SOL_NODE_LOCAL:
-  case SOL_NODE_GLOBAL:
   case SOL_NODE_DECL:
     indent(depth);
     printf("var\n");
