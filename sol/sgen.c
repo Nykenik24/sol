@@ -8,6 +8,7 @@
 #include "sparser.h"
 #include <assert.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -230,12 +231,12 @@ static ulong emit(generator_t *gen, opcode_t op, int op_count, ...) {
   for (ulong i = 0; i < op_count; i++)
     gen->code[gen->i++] = va_arg(args, int);
   va_end(args);
-  return idx;
+  return idx - 1;
 }
 
 static ulong emit_0_op(generator_t *gen, opcode_t op) {
   gen->code[gen->i++] = encode(op, 0);
-  return gen->i;
+  return gen->i - 1;
 }
 
 static void g_lit(generator_t *gen, node_t *node) {
@@ -250,6 +251,15 @@ static void g_lit(generator_t *gen, node_t *node) {
   case SOL_NODE_STRING: {
     ushort c = push_const(gen, make_str(node->u.str));
     emit(gen, OP_PUSH_CONST, 1, c);
+    break;
+  }
+  case SOL_NODE_IDENT: {
+    const char *name = node->u.str;
+    symbol *sym = scope_resolve(gen, name);
+    if (!sym) {
+      sol_fatal("undefined variable '%s'\n", name);
+    }
+    emit(gen, OP_LOAD_LOCAL, 1, sym->slot);
     break;
   }
   case SOL_NODE_TRUE:
@@ -328,6 +338,25 @@ static void g_binop(generator_t *gen, node_t *node) {
     emit_0_op(gen, OP_BITOR);
     return;
 
+  case SOL_TK_SYM_MORE:
+    emit_0_op(gen, OP_GREATER);
+    return;
+  case SOL_TK_SYM_GEQUAL:
+    emit_0_op(gen, OP_EQ_GREATER);
+    return;
+  case SOL_TK_SYM_LESS:
+    emit_0_op(gen, OP_SMALLER);
+    return;
+  case SOL_TK_SYM_LEQUAL:
+    emit_0_op(gen, OP_EQ_SMALLER);
+    return;
+  case SOL_TK_SYM_EQUAL:
+    emit_0_op(gen, OP_EQUAL);
+    return;
+  case SOL_TK_SYM_NEQUAL:
+    emit_0_op(gen, OP_NEQUAL);
+    return;
+
   default:
     sol_fatal("'%s' isn't a supported binary operator\n", op->txt);
   }
@@ -341,6 +370,7 @@ static void g_infixexp(generator_t *gen, node_t *node) {
 
 static void g_exp(generator_t *gen, node_t *node) {
   switch (node->kind) {
+  case SOL_NODE_IDENT:
   case SOL_NODE_INT:
   case SOL_NODE_FLOAT:
   case SOL_NODE_HEX_DIGIT:
@@ -371,11 +401,25 @@ static void g_exp(generator_t *gen, node_t *node) {
     break;
 
   default:
-    sol_fatal_internal("this isn't an expression!\n");
+    sol_fatal_internal("%d isn't an expression!\n", node->kind);
   }
 }
 
 static void g_stmt(generator_t *gen, node_t *node);
+static void g_block_not_scoped(generator_t *gen, node_t *node);
+static void g_block(generator_t *gen, node_t *node);
+
+static bool has_prefix(const char *prefix, const char *str) {
+  if (strlen(prefix) > strlen(str))
+    return false;
+
+  int i = 0;
+  for (i = 0; str[i]; i++) {
+    if (prefix[i] != str[i])
+      return false;
+  }
+  return true;
+}
 
 static void g_decl(generator_t *gen, node_t *node) {
   ulong n = node->u.decl.n;
@@ -393,6 +437,10 @@ static void g_decl(generator_t *gen, node_t *node) {
 
   for (ulong i = n; i-- > 0;) {
     const char *name = node->u.decl.names[i];
+    if (has_prefix("___", name)) {
+      sol_fatal("variable names can't have the '___'; it's reserved for sol "
+                "internal use\n");
+    }
 
     // WARN: unused
     const char *attrib = node->u.decl.attribs[i];
@@ -411,11 +459,99 @@ static void g_decl(generator_t *gen, node_t *node) {
   }
 }
 
-static void g_block(generator_t *gen, node_t *node) {
+static void patch_jump(generator_t *gen, ulong jmp_idx, ushort target) {
+  gen->code[jmp_idx + 1] = target;
+}
+
+static void patch_to_end(generator_t *gen, ulong jmp_idx) {
+  gen->code[jmp_idx + 1] = gen->i;
+}
+
+static void g_if(generator_t *gen, node_t *node) {
+  for (ulong i = 0; i < node->u.if_stmt.n; i++) {
+    g_exp(gen, node->u.if_stmt.conds[i]);
+    ulong jmp_idx = emit(gen, OP_JMP_FALSE, 1, 0);
+    printf("emitted dummy jmpf, at index %zu\n", gen->i);
+    g_block(gen, node->u.if_stmt.bodies[i]);
+    patch_to_end(gen, jmp_idx);
+    printf("patched jmpf, at index %zu\n", gen->i);
+  }
+
+  if (node->u.if_stmt.has_else) {
+    g_block(gen, node->u.if_stmt.else_body);
+  }
+}
+
+static void g_while(generator_t *gen, node_t *node) {
+  ulong start = gen->i;
+  g_block(gen, node->u.while_loop.body);
+  g_exp(gen, node->u.while_loop.cond);
+  emit(gen, OP_JMP_FALSE, 1, start);
+}
+
+static void g_repeat(generator_t *gen, node_t *node) {
+  ulong start = gen->i;
+  g_block(gen, node->u.repeat_loop.body);
+  g_exp(gen, node->u.repeat_loop.cond);
+  emit(gen, OP_JMP_TRUE, 1, start);
+}
+
+static void g_for_num(generator_t *gen, node_t *node) {
   scope_push(gen);
+
+  g_exp(gen, node->u.for_num.limit);
+  symbol *limit_sym = arena_alloc(gen->arena, sizeof(symbol));
+  limit_sym->slot = next_local_slot(gen);
+  scope_define(gen, "___limit", limit_sym);
+  emit(gen, OP_DEF_LOCAL, 1, limit_sym->slot);
+
+  g_exp(gen, node->u.for_num.step);
+  symbol *step_sym = arena_alloc(gen->arena, sizeof(symbol));
+  step_sym->slot = next_local_slot(gen);
+  scope_define(gen, "___step", step_sym);
+  emit(gen, OP_DEF_LOCAL, 1, step_sym->slot);
+
+  g_exp(gen, node->u.for_num.start);
+  symbol *i_sym = arena_alloc(gen->arena, sizeof(symbol));
+  i_sym->slot = next_local_slot(gen);
+  scope_define(gen, node->u.for_num.name, i_sym);
+  emit(gen, OP_DEF_LOCAL, 1, i_sym->slot);
+
+  // pre-test
+  emit(gen, OP_LOAD_LOCAL, 1, i_sym->slot);
+  emit(gen, OP_LOAD_LOCAL, 1, limit_sym->slot);
+  emit(gen, OP_LOAD_LOCAL, 1, step_sym->slot);
+  emit_0_op(gen, OP_FOR_CHECK);
+  ulong jmp_to_end = emit(gen, OP_JMP_FALSE, 1, 0);
+
+  ulong start = gen->i;
+  g_block_not_scoped(gen, node->u.for_num.body);
+
+  emit(gen, OP_LOAD_LOCAL, 1, i_sym->slot);
+  emit(gen, OP_LOAD_LOCAL, 1, step_sym->slot);
+  emit_0_op(gen, OP_ADD);
+  emit(gen, OP_STORE_LOCAL, 1, i_sym->slot);
+
+  // post-test
+  emit(gen, OP_LOAD_LOCAL, 1, i_sym->slot);
+  emit(gen, OP_LOAD_LOCAL, 1, limit_sym->slot);
+  emit(gen, OP_LOAD_LOCAL, 1, step_sym->slot);
+  emit_0_op(gen, OP_FOR_CHECK);
+  emit(gen, OP_JMP_TRUE, 1, start);
+
+  patch_to_end(gen, jmp_to_end);
+  scope_pop(gen);
+}
+
+static void g_block_not_scoped(generator_t *gen, node_t *node) {
   for (ulong i = 0; i < node->u.block.n; i++) {
     g_stmt(gen, node->u.block.stmts[i]);
   }
+}
+
+static void g_block(generator_t *gen, node_t *node) {
+  scope_push(gen);
+  g_block_not_scoped(gen, node);
   scope_pop(gen);
 }
 
@@ -426,6 +562,18 @@ static void g_stmt(generator_t *gen, node_t *node) {
     break;
   case SOL_NODE_BLOCK:
     g_block(gen, node);
+    break;
+  case SOL_NODE_IF:
+    g_if(gen, node);
+    break;
+  case SOL_NODE_WHILE:
+    g_while(gen, node);
+    break;
+  case SOL_NODE_REPEAT:
+    g_repeat(gen, node);
+    break;
+  case SOL_NODE_FOR_NUM:
+    g_for_num(gen, node);
     break;
   default:
     sol_fatal_internal("unsupported statement %d\n", node->kind);

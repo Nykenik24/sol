@@ -23,10 +23,31 @@ typedef enum {
   OP_BITOR,
   OP_NOT,
   OP_BITNOT,
+  OP_GREATER,
+  OP_EQ_GREATER,
+  OP_SMALLER,
+  OP_EQ_SMALLER,
+  OP_EQUAL,
+  OP_NEQUAL,
 
   OP_PUSH_CONST,
   OP_DEF_LOCAL,
+  OP_LOAD_LOCAL,
   OP_STORE_LOCAL,
+
+  /* NOTE: Pops step, limit, i (in that order, top of stack first).
+   * Pushes: step >= 0 ? (i <= limit) : (i >= limit)
+   * This means VM will need to:
+   * 1. Pop 3 values.
+   * 2. Branch on step's sign (if step is non-negative i <= limit, negative i >=
+   * limit).
+   * 3. Push a single boolean.
+   */
+  OP_FOR_CHECK,
+
+  OP_JMP,
+  OP_JMP_TRUE,
+  OP_JMP_FALSE,
 
   OP_COUNT, // always last
 } opcode_t;

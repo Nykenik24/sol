@@ -78,6 +78,7 @@ typedef struct node_t {
       struct node_t **conds;
       struct node_t **bodies;
       ulong n;
+      bool has_else;
       struct node_t *else_body;
     } if_stmt;
 

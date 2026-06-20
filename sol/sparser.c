@@ -615,9 +615,11 @@ static node_t *p_stmt(parser_t *parser) {
     }
 
     node_t *else_body = NULL;
+    bool has_else = false;
     if (match("else")) {
       skip();
       else_body = p_block(parser);
+      has_else = true;
     }
 
     expect(parser, "end");
@@ -632,6 +634,7 @@ static node_t *p_stmt(parser_t *parser) {
     n->u.if_stmt.bodies = body_arr;
     n->u.if_stmt.n = cond_n;
     n->u.if_stmt.else_body = else_body;
+    n->u.if_stmt.has_else = has_else;
     return n;
   }
 

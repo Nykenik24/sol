@@ -1,3 +1,4 @@
+#include "common/types.h"
 #include "common/vector.h"
 #include "sgen.h"
 
@@ -22,21 +23,43 @@ static const char *opcode_name(opcode_t op) {
   case OP_AND:
     return "AND";
   case OP_BITAND:
-    return "BITAND";
+    return "BIT AND";
   case OP_OR:
     return "OR";
   case OP_BITOR:
-    return "BITOR";
+    return "BIT OR";
   case OP_NOT:
     return "NOT";
   case OP_BITNOT:
     return "BITNOT";
+  case OP_GREATER:
+    return "GREATER";
+  case OP_EQ_GREATER:
+    return "EQUAL/GREATER";
+  case OP_SMALLER:
+    return "SMALLER";
+  case OP_EQ_SMALLER:
+    return "EQUAL/SMALLER";
+  case OP_EQUAL:
+    return "EQUAL";
+  case OP_NEQUAL:
+    return "NOT EQUAL";
   case OP_PUSH_CONST:
-    return "PUSH_CONST";
+    return "PUSH CONST";
   case OP_DEF_LOCAL:
-    return "DEF_LOCAL";
+    return "DEF LOCAL";
+  case OP_LOAD_LOCAL:
+    return "LOAD LOCAL";
   case OP_STORE_LOCAL:
-    return "STORE_LOCAL";
+    return "STORE LOCAL";
+  case OP_JMP:
+    return "JUMP";
+  case OP_JMP_TRUE:
+    return "JUMP (TRUE)";
+  case OP_JMP_FALSE:
+    return "JUMP (FALSE)";
+  case OP_FOR_CHECK:
+    return "FOR CHECK";
   case OP_COUNT:
     return "<COUNT>";
   }
