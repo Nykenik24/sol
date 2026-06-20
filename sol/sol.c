@@ -78,8 +78,8 @@ int main(int argc, char **argv) {
 
   parser_t *parser = new_parser(lexer);
   parse(parser);
-  print_ast(parser->ast);
-  printf("\n");
+  // print_ast(parser->ast);
+  // printf("\n");
 
   generator_t *gen = new_gen(parser);
   generate(gen);

@@ -149,40 +149,27 @@ static void print_node(node_t *node, int depth) {
     }
     break;
 
-  case SOL_NODE_FOR_NUM:
+  case SOL_NODE_EACH:
     indent(depth);
-    printf("for_num(%s)\n", node->u.for_num.name);
-    indent(depth + 1);
-    puts("start:");
-    print_node(node->u.for_num.start, depth + 2);
-    indent(depth + 1);
-    puts("limit:");
-    print_node(node->u.for_num.limit, depth + 2);
-    if (node->u.for_num.step) {
-      indent(depth + 1);
-      puts("step:");
-      print_node(node->u.for_num.step, depth + 2);
-    }
-    indent(depth + 1);
-    puts("body:");
-    print_node(node->u.for_num.body, depth + 2);
-    break;
+    fputs("each(", stdout);
 
-  case SOL_NODE_FOR_IN:
-    indent(depth);
-    fputs("for_in(", stdout);
-    for (ulong i = 0; i < node->u.for_in.name_n; i++) {
-      fputs(node->u.for_in.names[i], stdout);
-      if (i + 1 < node->u.for_in.name_n)
+    for (ulong i = 0; i < node->u.each.names_n; i++) {
+      fputs(node->u.each.names[i], stdout);
+
+      if (i + 1 < node->u.each.names_n)
         fputs(", ", stdout);
     }
+
     puts(")");
+
     indent(depth + 1);
-    puts("iters:");
-    print_nodes(node->u.for_in.iters, node->u.for_in.iter_n, depth + 2);
+    puts("iter:");
+    print_node(node->u.each.iter, depth + 2);
+
     indent(depth + 1);
     puts("body:");
-    print_node(node->u.for_in.body, depth + 2);
+    print_node(node->u.each.body, depth + 2);
+
     break;
 
   case SOL_NODE_ASSIGN:

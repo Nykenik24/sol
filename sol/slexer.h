@@ -60,10 +60,10 @@ typedef enum {
   SOL_TK_KW_GOTO,
   SOL_TK_KW_THEN,
   SOL_TK_KW_TRUE,
+  SOL_TK_KW_EACH,
   SOL_TK_KW_VAR,
   SOL_TK_KW_AND,
   SOL_TK_KW_END,
-  SOL_TK_KW_FOR,
   SOL_TK_KW_NIL,
   SOL_TK_KW_NOT,
   SOL_TK_KW_DO,
@@ -74,6 +74,7 @@ typedef enum {
 
 typedef struct {
   ulong line;
+  ulong col;
   token_type_t type;
   const char *txt;
 } token_t;

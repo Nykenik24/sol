@@ -257,7 +257,8 @@ static void g_lit(generator_t *gen, node_t *node) {
     const char *name = node->u.str;
     symbol *sym = scope_resolve(gen, name);
     if (!sym) {
-      sol_fatal("undefined variable '%s'\n", name);
+      error_info_t info = line_n_col(node->start->line, node->start->col);
+      sol_diag(SOL_DIAG_ERROR, &info, "undefined variable '%s'\n", name);
     }
     emit(gen, OP_LOAD_LOCAL, 1, sym->slot);
     break;
@@ -274,8 +275,10 @@ static void g_lit(generator_t *gen, node_t *node) {
     emit(gen, OP_PUSH_CONST, 1, c);
     break;
   }
-  default:
-    sol_fatal_internal("this isn't a literal!\n");
+  default: {
+    error_info_t info = line_n_col(node->start->line, node->start->col);
+    sol_diag(SOL_DIAG_ERROR, &info, "this isn't a literal!\n");
+  }
   }
 }
 
@@ -297,8 +300,11 @@ static void g_unop(generator_t *gen, node_t *node) {
     g_exp(gen, node->u.unop.operand);
     emit_0_op(gen, OP_BITNOT);
     break;
-  default:
-    sol_fatal("'%s' isn't a supported unary operator\n", op->txt);
+  default: {
+    error_info_t info = line_n_col(node->start->line, node->start->col);
+    sol_diag(SOL_DIAG_ERROR, &info, "'%s' isn't a supported unary operator\n",
+             op->txt);
+  }
   }
 }
 
@@ -357,8 +363,11 @@ static void g_binop(generator_t *gen, node_t *node) {
     emit_0_op(gen, OP_NEQUAL);
     return;
 
-  default:
-    sol_fatal("'%s' isn't a supported binary operator\n", op->txt);
+  default: {
+    error_info_t info = line_n_col(node->start->line, node->start->col);
+    sol_diag(SOL_DIAG_ERROR, &info, "'%s' isn't a supported binary operator\n",
+             op->txt);
+  }
   }
 }
 
@@ -400,8 +409,10 @@ static void g_exp(generator_t *gen, node_t *node) {
     g_prefixexp(gen, node);
     break;
 
-  default:
-    sol_fatal_internal("%d isn't an expression!\n", node->kind);
+  default: {
+    error_info_t info = line_n_col(node->start->line, node->start->col);
+    sol_diag(SOL_DIAG_ICE, &info, "%d isn't an expression!\n", node->kind);
+  }
   }
 }
 
@@ -438,8 +449,10 @@ static void g_decl(generator_t *gen, node_t *node) {
   for (ulong i = n; i-- > 0;) {
     const char *name = node->u.decl.names[i];
     if (has_prefix("___", name)) {
-      sol_fatal("variable names can't have the '___'; it's reserved for sol "
-                "internal use\n");
+      error_info_t info = line_n_col(node->start->line, node->start->col);
+      sol_diag(SOL_DIAG_ERROR, &info,
+               "variable names can't have the '___'; it's reserved for sol "
+               "internal use\n");
     }
 
     // WARN: unused
@@ -448,7 +461,9 @@ static void g_decl(generator_t *gen, node_t *node) {
 
     symbol *sym = scope_resolve_local(gen, name);
     if (sym != NULL) {
-      sol_fatal("redeclaration of variable '%s' in local scope\n", name);
+      error_info_t info = line_n_col(node->start->line, node->start->col);
+      sol_diag(SOL_DIAG_ERROR, &info,
+               "redeclaration of variable '%s' in local scope\n", name);
     }
 
     sym = arena_alloc(gen->arena, sizeof(symbol));
@@ -496,51 +511,13 @@ static void g_repeat(generator_t *gen, node_t *node) {
   emit(gen, OP_JMP_TRUE, 1, start);
 }
 
-static void g_for_num(generator_t *gen, node_t *node) {
-  scope_push(gen);
+static void g_each(generator_t *gen, node_t *node) {
+  (void)gen;
+  (void)node;
 
-  g_exp(gen, node->u.for_num.limit);
-  symbol *limit_sym = arena_alloc(gen->arena, sizeof(symbol));
-  limit_sym->slot = next_local_slot(gen);
-  scope_define(gen, "___limit", limit_sym);
-  emit(gen, OP_DEF_LOCAL, 1, limit_sym->slot);
-
-  g_exp(gen, node->u.for_num.step);
-  symbol *step_sym = arena_alloc(gen->arena, sizeof(symbol));
-  step_sym->slot = next_local_slot(gen);
-  scope_define(gen, "___step", step_sym);
-  emit(gen, OP_DEF_LOCAL, 1, step_sym->slot);
-
-  g_exp(gen, node->u.for_num.start);
-  symbol *i_sym = arena_alloc(gen->arena, sizeof(symbol));
-  i_sym->slot = next_local_slot(gen);
-  scope_define(gen, node->u.for_num.name, i_sym);
-  emit(gen, OP_DEF_LOCAL, 1, i_sym->slot);
-
-  // pre-test
-  emit(gen, OP_LOAD_LOCAL, 1, i_sym->slot);
-  emit(gen, OP_LOAD_LOCAL, 1, limit_sym->slot);
-  emit(gen, OP_LOAD_LOCAL, 1, step_sym->slot);
-  emit_0_op(gen, OP_FOR_CHECK);
-  ulong jmp_to_end = emit(gen, OP_JMP_FALSE, 1, 0);
-
-  ulong start = gen->i;
-  g_block_not_scoped(gen, node->u.for_num.body);
-
-  emit(gen, OP_LOAD_LOCAL, 1, i_sym->slot);
-  emit(gen, OP_LOAD_LOCAL, 1, step_sym->slot);
-  emit_0_op(gen, OP_ADD);
-  emit(gen, OP_STORE_LOCAL, 1, i_sym->slot);
-
-  // post-test
-  emit(gen, OP_LOAD_LOCAL, 1, i_sym->slot);
-  emit(gen, OP_LOAD_LOCAL, 1, limit_sym->slot);
-  emit(gen, OP_LOAD_LOCAL, 1, step_sym->slot);
-  emit_0_op(gen, OP_FOR_CHECK);
-  emit(gen, OP_JMP_TRUE, 1, start);
-
-  patch_to_end(gen, jmp_to_end);
-  scope_pop(gen);
+  // TODO: implement later
+  error_info_t info = line_n_col(node->start->line, node->start->col);
+  sol_diag(SOL_DIAG_WIP, &info, "sorry, but each-loops are W.I.P!\n");
 }
 
 static void g_block_not_scoped(generator_t *gen, node_t *node) {
@@ -572,11 +549,13 @@ static void g_stmt(generator_t *gen, node_t *node) {
   case SOL_NODE_REPEAT:
     g_repeat(gen, node);
     break;
-  case SOL_NODE_FOR_NUM:
-    g_for_num(gen, node);
+  case SOL_NODE_EACH:
+    g_each(gen, node);
     break;
-  default:
-    sol_fatal_internal("unsupported statement %d\n", node->kind);
+  default: {
+    error_info_t info = line_n_col(node->start->line, node->start->col);
+    sol_diag(SOL_DIAG_ICE, &info, "unsupported statement %d\n", node->kind);
+  }
   }
 }
 

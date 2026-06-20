@@ -5,6 +5,7 @@
 #include "common/vector.h"
 #include "slexer.h"
 #include "snode.h"
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -103,16 +104,22 @@ static int is_unop(const char *txt) {
 }
 
 static void expect(parser_t *parser, const char *txt) {
-  if (at_end() || !match(txt))
-    sol_fatal("expected '%s', got '%s' at line %lu\n", txt, cur_txt(),
-              cur_tk()->line);
+  if (at_end() || !match(txt)) {
+    token_t *tk = cur_tk();
+    error_info_t info = line_n_col(tk->line, tk->col);
+    sol_diag(SOL_DIAG_ERROR, &info, "expected '%s', got '%s'\n", txt,
+             cur_txt());
+  }
   skip();
 }
 
 static const char *expect_name(parser_t *parser) {
-  if (at_end() || cur_type() != SOL_TK_IDENT)
-    sol_fatal("expected name, got '%s' at line %lu\n", cur_txt(),
-              cur_tk()->line);
+  if (at_end() || cur_type() != SOL_TK_IDENT) {
+    token_t *tk = cur_tk();
+    error_info_t info = line_n_col(tk->line, tk->col);
+    sol_diag(SOL_DIAG_ERROR, &info, "expected name, got '%s'\n", cur_txt(),
+             cur_txt());
+  }
   const char *name = dup_str(parser, cur_txt());
   skip();
   return name;
@@ -148,6 +155,7 @@ static const char **p_namelist_into(parser_t *parser, ulong *out_n) {
 }
 
 static node_t *p_funcbody(parser_t *parser) {
+  token_t *start = cur_tk();
   expect(parser, "(");
 
   vector_t *params = nv_new_strs();
@@ -189,6 +197,7 @@ static node_t *p_funcbody(parser_t *parser) {
 
   node_alloc(node);
   node->kind = SOL_NODE_FUNC_DEF;
+  node->start = start;
   node->u.funcbody.params = param_arr;
   node->u.funcbody.param_n = param_n;
   node->u.funcbody.has_vararg = has_vararg;
@@ -198,6 +207,7 @@ static node_t *p_funcbody(parser_t *parser) {
 }
 
 static node_t *p_table(parser_t *parser) {
+  token_t *start = cur_tk();
   expect(parser, "{");
   vector_t *fields = nv_new_nodes();
 
@@ -242,6 +252,7 @@ static node_t *p_table(parser_t *parser) {
 
   node_alloc(node);
   node->kind = SOL_NODE_TABLE;
+  node->start = start;
   node->u.table.fields = arr;
   node->u.table.n = n;
   return node;
@@ -265,21 +276,25 @@ static node_t **p_args(parser_t *parser, ulong *arg_n) {
   } else if (cur_type() == SOL_TK_STRING) {
     node_alloc(s);
     s->kind = SOL_NODE_STRING;
+    s->start = cur_tk();
     s->u.str = dup_str(parser, cur_txt());
     skip();
     nv_push_node(args, s);
   } else {
-    sol_fatal("expected function arguments, got '%s' at line %lu\n", cur_txt(),
-              cur_tk()->line);
+    error_info_t info = line_n_col(cur_tk()->line, cur_tk()->col);
+    sol_diag(SOL_DIAG_ERROR, &info, "expected function arguments, got '%s'\n",
+             cur_txt());
   }
 
   return nv_to_node_array(parser, args, arg_n);
 }
 
 static node_t *p_primaryexp(parser_t *parser) {
+  token_t *start = cur_tk();
   if (cur_type() == SOL_TK_IDENT) {
     node_alloc(node);
     node->kind = SOL_NODE_IDENT;
+    node->start = start;
     node->u.str = dup_str(parser, cur_txt());
     skip();
     return node;
@@ -292,11 +307,14 @@ static node_t *p_primaryexp(parser_t *parser) {
     return inner;
   }
 
-  sol_fatal("unexpected symbol '%s' at line %lu\n", cur_txt(), cur_tk()->line);
+  error_info_t info = line_n_col(cur_tk()->line, cur_tk()->col);
+  sol_diag(SOL_DIAG_ERROR, &info, "unexpected symbol '%s'\n", cur_txt(),
+           cur_tk()->line);
   return NULL;
 }
 
 static node_t *p_prefixexp(parser_t *parser) {
+  token_t *start = cur_tk();
   node_t *node = p_primaryexp(parser);
 
   while (!at_end()) {
@@ -305,6 +323,7 @@ static node_t *p_prefixexp(parser_t *parser) {
       const char *name = expect_name(parser);
       node_alloc(field);
       field->kind = SOL_NODE_FIELD;
+      field->start = start;
       field->u.field.target = node;
       field->u.field.name = name;
       node = field;
@@ -314,6 +333,7 @@ static node_t *p_prefixexp(parser_t *parser) {
       expect(parser, "]");
       node_alloc(idx);
       idx->kind = SOL_NODE_INDEX;
+      idx->start = start;
       idx->u.index.target = node;
       idx->u.index.key = key;
       node = idx;
@@ -324,6 +344,7 @@ static node_t *p_prefixexp(parser_t *parser) {
       node_t **args = p_args(parser, &arg_n);
       node_alloc(call);
       call->kind = SOL_NODE_METHOD_CALL;
+      call->start = start;
       call->u.method_call.target = node;
       call->u.method_call.method = method;
       call->u.method_call.args = args;
@@ -334,6 +355,7 @@ static node_t *p_prefixexp(parser_t *parser) {
       node_t **args = p_args(parser, &arg_n);
       node_alloc(call);
       call->kind = SOL_NODE_FUNC_CALL;
+      call->start = start;
       call->u.call.target = node;
       call->u.call.args = args;
       call->u.call.arg_n = arg_n;
@@ -347,36 +369,44 @@ static node_t *p_prefixexp(parser_t *parser) {
 }
 
 static node_t *p_simple_exp(parser_t *parser) {
-  if (at_end())
-    sol_fatal("unexpected end of input\n");
+  token_t *start = cur_tk();
+  if (at_end()) {
+    error_info_t info = line_n_col(cur_tk()->line, cur_tk()->col);
+    sol_diag(SOL_DIAG_ERROR, &info, "unexpected end of input\n");
+  }
 
   if (match("nil")) {
     node_alloc(n);
     n->kind = SOL_NODE_NIL;
+    n->start = start;
     skip();
     return n;
   }
   if (match("true")) {
     node_alloc(n);
     n->kind = SOL_NODE_TRUE;
+    n->start = start;
     skip();
     return n;
   }
   if (match("false")) {
     node_alloc(n);
     n->kind = SOL_NODE_FALSE;
+    n->start = start;
     skip();
     return n;
   }
   if (match("...")) {
     node_alloc(n);
     n->kind = SOL_NODE_VARARG;
+    n->start = start;
     skip();
     return n;
   }
   if (cur_type() == SOL_TK_INT) {
     node_alloc(n);
     n->kind = SOL_NODE_INT;
+    n->start = start;
     n->u.num = atof(cur_txt());
     skip();
     return n;
@@ -384,6 +414,7 @@ static node_t *p_simple_exp(parser_t *parser) {
   if (cur_type() == SOL_TK_FLOAT) {
     node_alloc(n);
     n->kind = SOL_NODE_FLOAT;
+    n->start = start;
     n->u.num = atof(cur_txt());
     skip();
     return n;
@@ -391,6 +422,7 @@ static node_t *p_simple_exp(parser_t *parser) {
   if (cur_type() == SOL_TK_HEX_DIGIT) {
     node_alloc(n);
     n->kind = SOL_NODE_HEX_DIGIT;
+    n->start = start;
     n->u.num = (double)strtol(cur_txt(), NULL, 16);
     skip();
     return n;
@@ -398,6 +430,7 @@ static node_t *p_simple_exp(parser_t *parser) {
   if (cur_type() == SOL_TK_STRING) {
     node_alloc(n);
     n->kind = SOL_NODE_STRING;
+    n->start = start;
     n->u.str = dup_str(parser, cur_txt());
     skip();
     return n;
@@ -415,6 +448,7 @@ static node_t *p_simple_exp(parser_t *parser) {
     node_t *operand = p_simple_exp(parser);
     node_alloc(n);
     n->kind = SOL_NODE_UNOP;
+    n->start = start;
     n->u.unop.op = op;
     n->u.unop.operand = operand;
     return n;
@@ -456,6 +490,7 @@ static int is_right_assoc(const char *op) {
 }
 
 static node_t *p_exp_prec(parser_t *parser, int min_prec) {
+  token_t *start = cur_tk();
   node_t *left = p_simple_exp(parser);
 
   while (!at_end() && is_binop(cur_txt())) {
@@ -472,6 +507,7 @@ static node_t *p_exp_prec(parser_t *parser, int min_prec) {
 
     node_alloc(bin);
     bin->kind = SOL_NODE_BINOP;
+    bin->start = start;
     bin->u.binop.left = left;
     bin->u.binop.right = right;
     bin->u.binop.op = op;
@@ -484,6 +520,7 @@ static node_t *p_exp_prec(parser_t *parser, int min_prec) {
 static node_t *p_exp(parser_t *parser) { return p_exp_prec(parser, 1); }
 
 static node_t *p_block(parser_t *parser) {
+  token_t *start = cur_tk();
   vector_t *list = nv_new_nodes();
   node_t *retstat = NULL;
 
@@ -491,6 +528,7 @@ static node_t *p_block(parser_t *parser) {
          !match("until")) {
     if (match("return")) {
       skip();
+      token_t *rs_start = cur_tk();
 
       vector_t *rets = nv_new_nodes();
       if (!at_end() && !match(";") && !match("end") && !match("else") &&
@@ -507,6 +545,7 @@ static node_t *p_block(parser_t *parser) {
 
       node_alloc(rs);
       rs->kind = SOL_NODE_RETURN;
+      rs->start = rs_start;
       rs->u.ret.explist = ret_arr;
       rs->u.ret.n = ret_n;
       retstat = rs;
@@ -526,6 +565,7 @@ static node_t *p_block(parser_t *parser) {
 
   node_alloc(block);
   block->kind = SOL_NODE_BLOCK;
+  block->start = start;
   block->u.block.stmts = arr;
   block->u.block.n = n;
   block->u.block.retstat = retstat;
@@ -533,6 +573,7 @@ static node_t *p_block(parser_t *parser) {
 }
 
 static node_t *p_stmt(parser_t *parser) {
+  token_t *start = cur_tk();
   if (match(";")) {
     skip();
     return NULL;
@@ -541,6 +582,7 @@ static node_t *p_stmt(parser_t *parser) {
   if (match("break")) {
     node_alloc(n);
     n->kind = SOL_NODE_BREAK;
+    n->start = start;
     skip();
     return n;
   }
@@ -549,6 +591,7 @@ static node_t *p_stmt(parser_t *parser) {
     skip();
     node_alloc(n);
     n->kind = SOL_NODE_GOTO;
+    n->start = start;
     n->u.str = expect_name(parser);
     return n;
   }
@@ -559,6 +602,7 @@ static node_t *p_stmt(parser_t *parser) {
     expect(parser, "::");
     node_alloc(n);
     n->kind = SOL_NODE_LABEL;
+    n->start = start;
     n->u.str = name;
     return n;
   }
@@ -569,18 +613,21 @@ static node_t *p_stmt(parser_t *parser) {
     expect(parser, "end");
     node_alloc(n);
     n->kind = SOL_NODE_DO;
+    n->start = start;
     n->u.block = body->u.block;
     return n;
   }
 
   if (match("while")) {
     skip();
+    expect(parser, "(");
     node_t *cond = p_exp(parser);
-    expect(parser, "do");
+    expect(parser, ")");
     node_t *body = p_block(parser);
     expect(parser, "end");
     node_alloc(n);
     n->kind = SOL_NODE_WHILE;
+    n->start = start;
     n->u.while_loop.cond = cond;
     n->u.while_loop.body = body;
     return n;
@@ -590,9 +637,12 @@ static node_t *p_stmt(parser_t *parser) {
     skip();
     node_t *body = p_block(parser);
     expect(parser, "until");
+    expect(parser, "(");
     node_t *cond = p_exp(parser);
+    expect(parser, ")");
     node_alloc(n);
     n->kind = SOL_NODE_REPEAT;
+    n->start = start;
     n->u.repeat_loop.body = body;
     n->u.repeat_loop.cond = cond;
     return n;
@@ -603,14 +653,16 @@ static node_t *p_stmt(parser_t *parser) {
     vector_t *conds = nv_new_nodes();
     vector_t *bodies = nv_new_nodes();
 
+    expect(parser, "(");
     nv_push_node(conds, p_exp(parser));
-    expect(parser, "then");
+    expect(parser, ")");
     nv_push_node(bodies, p_block(parser));
 
     while (match("elseif")) {
       skip();
+      expect(parser, "(");
       nv_push_node(conds, p_exp(parser));
-      expect(parser, "then");
+      expect(parser, ")");
       nv_push_node(bodies, p_block(parser));
     }
 
@@ -630,6 +682,7 @@ static node_t *p_stmt(parser_t *parser) {
 
     node_alloc(n);
     n->kind = SOL_NODE_IF;
+    n->start = start;
     n->u.if_stmt.conds = cond_arr;
     n->u.if_stmt.bodies = body_arr;
     n->u.if_stmt.n = cond_n;
@@ -638,58 +691,37 @@ static node_t *p_stmt(parser_t *parser) {
     return n;
   }
 
-  if (match("for")) {
+  if (match("each")) {
     skip();
-    const char *first = expect_name(parser);
 
-    if (match("=")) {
+    ulong names_n = 0;
+    const char **names = NULL;
+
+    if (match_type(SOL_TK_IDENT)) {
+
+      names = arena_alloc(parser->arena, sizeof(char *));
+      names[0] = cur_txt();
+      names_n = 1;
+
       skip();
-      node_t *start = p_exp(parser);
-      expect(parser, ",");
-      node_t *limit = p_exp(parser);
-      node_t *step = NULL;
-      if (match(",")) {
-        skip();
-        step = p_exp(parser);
-      }
-      expect(parser, "do");
-      node_t *body = p_block(parser);
-      expect(parser, "end");
-      node_alloc(n);
-      n->kind = SOL_NODE_FOR_NUM;
-      n->u.for_num.name = first;
-      n->u.for_num.start = start;
-      n->u.for_num.limit = limit;
-      n->u.for_num.step = step;
-      n->u.for_num.body = body;
-      return n;
+    } else {
+      expect(parser, "[");
+      names = p_namelist_into(parser, &names_n);
+      expect(parser, "]");
     }
 
-    vector_t *names = nv_new_strs();
-    nv_push_str(names, first);
-    while (match(",")) {
-      skip();
-      nv_push_str(names, expect_name(parser));
-    }
     expect(parser, "in");
-
-    ulong iter_n;
-    node_t **iters = p_explist_into(parser, &iter_n);
-
-    expect(parser, "do");
+    node_t *iter = p_exp(parser);
     node_t *body = p_block(parser);
     expect(parser, "end");
 
-    ulong name_n;
-    const char **name_arr = nv_to_str_array(parser, names, &name_n);
-
     node_alloc(n);
-    n->kind = SOL_NODE_FOR_IN;
-    n->u.for_in.names = name_arr;
-    n->u.for_in.name_n = name_n;
-    n->u.for_in.iters = iters;
-    n->u.for_in.iter_n = iter_n;
-    n->u.for_in.body = body;
+    n->kind = SOL_NODE_EACH;
+    n->start = start;
+    n->u.each.names = names;
+    n->u.each.names_n = names_n;
+    n->u.each.iter = iter;
+    n->u.each.body = body;
     return n;
   }
 
@@ -713,6 +745,7 @@ static node_t *p_stmt(parser_t *parser) {
 
     node_alloc(n);
     n->kind = SOL_NODE_FUNC;
+    n->start = start;
     n->u.func.path = path_arr;
     n->u.func.path_n = path_n;
     n->u.func.method = method;
@@ -723,25 +756,21 @@ static node_t *p_stmt(parser_t *parser) {
   if (match("local")) {
     skip();
 
-    if (match("function")) {
-      skip();
-      const char *name = expect_name(parser);
-      node_t *body = p_funcbody(parser);
+    expect(parser, "function");
+    const char *name = expect_name(parser);
+    node_t *body = p_funcbody(parser);
 
-      const char **path = arena_alloc(parser->arena, sizeof(const char *));
-      path[0] = name;
+    const char **path = arena_alloc(parser->arena, sizeof(const char *));
+    path[0] = name;
 
-      node_alloc(n);
-      n->kind = SOL_NODE_LOCAL_FUNC;
-      n->u.func.path = path;
-      n->u.func.path_n = 1;
-      n->u.func.method = NULL;
-      n->u.func.body = body;
-      return n;
-    }
-
-    sol_fatal("expected 'function' after 'local' at line %lu\n",
-              cur_tk()->line);
+    node_alloc(n);
+    n->kind = SOL_NODE_LOCAL_FUNC;
+    n->start = start;
+    n->u.func.path = path;
+    n->u.func.path_n = 1;
+    n->u.func.method = NULL;
+    n->u.func.body = body;
+    return n;
   }
 
   if (match("var")) {
@@ -779,11 +808,14 @@ static node_t *p_stmt(parser_t *parser) {
     const char **attrib_arr = nv_to_str_array(parser, attribs, &attrib_n);
 
     if (name_n < value_n) {
-      sol_fatal("less names than values in declaration\n");
+      error_info_t info = line_n_col(cur_tk()->line, cur_tk()->col);
+      sol_diag(SOL_DIAG_ERROR, &info,
+               "less names than values in declaration\n");
     }
 
     node_alloc(n);
     n->kind = SOL_NODE_DECL;
+    n->start = start;
     n->u.decl.names = name_arr;
     n->u.decl.attribs = attrib_arr;
     n->u.decl.n = name_n;
@@ -811,6 +843,7 @@ static node_t *p_stmt(parser_t *parser) {
 
     node_alloc(n);
     n->kind = SOL_NODE_ASSIGN;
+    n->start = start;
     n->u.assign.targets = target_arr;
     n->u.assign.target_n = target_n;
     n->u.assign.values = values;
@@ -821,7 +854,8 @@ static node_t *p_stmt(parser_t *parser) {
   if (first->kind == SOL_NODE_FUNC_CALL || first->kind == SOL_NODE_METHOD_CALL)
     return first;
 
-  sol_fatal("unrecognized token '%s' at line %lu\n", cur_txt(), cur_tk()->line);
+  error_info_t info = line_n_col(cur_tk()->line, cur_tk()->col);
+  sol_diag(SOL_DIAG_ERROR, &info, "unrecognized token '%s'\n", cur_txt());
   return NULL;
 }
 

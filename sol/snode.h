@@ -24,8 +24,7 @@ typedef enum node_kind_t {
   SOL_NODE_WHILE,       // stmt
   SOL_NODE_REPEAT,      // stmt
   SOL_NODE_IF,          // stmt
-  SOL_NODE_FOR_NUM,     // stmt
-  SOL_NODE_FOR_IN,      // stmt
+  SOL_NODE_EACH,        // stmt
   SOL_NODE_RETURN,      // stmt
   SOL_NODE_ASSIGN,      // expr
   SOL_NODE_LOCAL,       // stmt
@@ -44,6 +43,7 @@ typedef enum node_kind_t {
 
 typedef struct node_t {
   node_kind_t kind;
+  token_t *start;
   union {
     double num;
     const char *str;
@@ -83,20 +83,11 @@ typedef struct node_t {
     } if_stmt;
 
     struct {
-      const char *name;
-      struct node_t *start;
-      struct node_t *limit;
-      struct node_t *step;
-      struct node_t *body;
-    } for_num;
-
-    struct {
+      ulong names_n;
       const char **names;
-      ulong name_n;
-      struct node_t **iters;
-      ulong iter_n;
+      struct node_t *iter;
       struct node_t *body;
-    } for_in;
+    } each;
 
     struct {
       struct node_t **explist;

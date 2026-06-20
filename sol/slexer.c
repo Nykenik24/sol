@@ -59,10 +59,10 @@ mapped_t kwtable[] = {
     {SOL_TK_KW_GOTO, "goto"},
     {SOL_TK_KW_THEN, "then"},
     {SOL_TK_KW_TRUE, "true"},
+    {SOL_TK_KW_EACH, "each"},
     {SOL_TK_KW_VAR, "var"},
     {SOL_TK_KW_AND, "and"},
     {SOL_TK_KW_END, "end"},
-    {SOL_TK_KW_FOR, "for"},
     {SOL_TK_KW_NIL, "nil"},
     {SOL_TK_KW_NOT, "not"},
     {SOL_TK_KW_DO, "do"},
@@ -108,24 +108,37 @@ static void push_token(lexer_t *lexer, token_t *tk) {
   push_back(lexer->tokens, tk);
 }
 
+#define next                                                                   \
+  i++;                                                                         \
+  col++
+#define skip(n)                                                                \
+  i += (n);                                                                    \
+  col += (n)
+
 void lex(lexer_t *lexer, const char *input) {
   lexer->tokens = new_vector(sizeof(token_t));
 
   ulong line = 1;
+  ulong col = 1;
   ulong i = 0;
   while (i < strlen(input)) {
     while (is_ws(input[i])) {
-      if (input[i] == '\n')
+      if (input[i] == '\n') {
         line++;
+        col = 1;
+      } else {
+        col++;
+      }
+
       i++;
     }
 
     if (input[i] == '-' && CAN_PUTC(input) && input[i + 1] == '-') {
-      i += 2;
+      skip(2);
       while (INBOUNDS(input) && (input[i] != '\n')) {
-        i++;
+        next;
       }
-      i++;
+      next;
       line++;
       continue;
     }
@@ -134,40 +147,49 @@ void lex(lexer_t *lexer, const char *input) {
       break;
 
     if (input[i] == '[' && CAN_PUTC(input) && input[i + 1] == '[') {
-      i += 2;
+      skip(2);
       if (!CAN_PUTC(input)) {
-        sol_fatal("unstarted multi-line string at line %lu\n", line);
+        error_info_t info = line_n_col(line, col);
+        sol_diag(SOL_DIAG_ERROR, &info, "unstarted multi-line string\n");
       }
 
       string_t *buf = new_str();
       while (input[i] != ']') {
         if (input[i] == '\\') {
-          i++;
+          next;
 
-          if (!CAN_PUTC(input))
-            sol_fatal("unterminated multi-line string at line %lu near [[%s\n",
-                      line, str_cstr(buf));
+          if (!CAN_PUTC(input)) {
+            error_info_t info = line_n_col(line, col);
+            sol_diag(SOL_DIAG_ERROR, &info,
+                     "unterminated multi-line string near [[%s\n",
+                     str_cstr(buf));
+          }
+
+          str_putc(buf, input[i]);
+          next;
         }
 
-        str_putc(buf, input[i]);
-        i++;
+        next;
+        if (!CAN_PUTC(input)) {
+          error_info_t info = line_n_col(line, col);
+          sol_diag(SOL_DIAG_ERROR, &info,
+                   "unterminated multi-line string near [[%s\n", str_cstr(buf));
+        }
+
+        if (input[i] != ']') {
+          error_info_t info = line_n_col(line, col);
+          sol_diag(SOL_DIAG_ERROR, &info,
+                   "wrong terminator for multi-line string\n");
+        }
+
+        next;
+
+        ulong len;
+        token_t *tk = new_token(lexer, str_cstr(buf), SOL_TK_STRING);
+        tk->line = line;
+        push_back(lexer->tokens, tk);
+        continue;
       }
-
-      i++;
-      if (!CAN_PUTC(input))
-        sol_fatal("unterminated multi-line string at line %lu near [[%s\n",
-                  line, str_cstr(buf));
-
-      if (input[i] != ']')
-        sol_fatal("wrong terminator for multi-line string at line %lu\n", line);
-
-      i++;
-
-      ulong len;
-      token_t *tk = new_token(lexer, str_cstr(buf), SOL_TK_STRING);
-      tk->line = line;
-      push_back(lexer->tokens, tk);
-      continue;
     }
 
     for (ulong j = 0; j < (sizeof symtable / sizeof symtable[0]); j++) {
@@ -182,7 +204,8 @@ void lex(lexer_t *lexer, const char *input) {
         if (strcmp(sym.txt, buf) == 0) {
           token_t *tk = new_token(lexer, sym.txt, sym.tt);
           tk->line = line;
-          i += len;
+          tk->col = col;
+          skip(len);
           push_token(lexer, tk);
           goto continue_;
         }
@@ -199,12 +222,13 @@ void lex(lexer_t *lexer, const char *input) {
         }
         buf[len] = '\0';
         if (strcmp(kw.txt, buf) == 0) {
-          char next = input[i + len];
-          if (is_alpha(next) || is_num(next) || next == '_')
+          char nxt = input[i + len];
+          if (is_alpha(nxt) || is_num(nxt) || nxt == '_')
             continue;
           token_t *tk = new_token(lexer, kw.txt, kw.tt);
           tk->line = line;
-          i += len;
+          tk->col = col;
+          skip(len);
           push_token(lexer, tk);
           goto continue_;
         }
@@ -213,17 +237,20 @@ void lex(lexer_t *lexer, const char *input) {
 
     if (input[i] == '0' && CAN_PUTC(input) && input[i + 1] == 'x') {
       i += 2;
-      if (!CAN_PUTC(input))
-        sol_fatal("unstarted hex literal at line %lu\n", line);
+      if (!CAN_PUTC(input)) {
+        error_info_t info = line_n_col(line, col);
+        sol_diag(SOL_DIAG_ERROR, &info, "unstarted hex literal\n");
+      }
 
       string_t *buf = new_str();
       while (i < strlen(input) && is_hex(input[i])) {
         str_putc(buf, input[i]);
-        i++;
+        next;
       }
 
       token_t *tk = new_token(lexer, str_cstr(buf), SOL_TK_HEX_DIGIT);
       tk->line = line;
+      tk->col = col;
       push_token(lexer, tk);
       continue;
     }
@@ -234,7 +261,7 @@ void lex(lexer_t *lexer, const char *input) {
 
       while (CAN_PUTC(input) && is_num(input[i])) {
         str_putc(buf, input[i]);
-        i++;
+        next;
       }
 
       if (CAN_PUTC(input)) {
@@ -244,13 +271,13 @@ void lex(lexer_t *lexer, const char *input) {
         kind = SOL_TK_FLOAT;
         str_putc(buf, input[i]);
 
-        i++;
+        next;
         if (!INBOUNDS(input))
           goto push;
 
         while (CAN_PUTC(input) && is_num(input[i])) {
           str_putc(buf, input[i]);
-          i++;
+          next;
         }
       } else
         goto push;
@@ -258,6 +285,7 @@ void lex(lexer_t *lexer, const char *input) {
     push: {
       token_t *tk = new_token(lexer, str_cstr(buf), kind);
       tk->line = line;
+      tk->col = col;
       push_token(lexer, tk);
       continue;
     }
@@ -265,28 +293,33 @@ void lex(lexer_t *lexer, const char *input) {
 
     if (input[i] == '"' || input[i] == '\'') {
       uchar term = input[i];
-      i++;
+      next;
 
-      if (!INBOUNDS(input))
-        sol_fatal("unterminated string at line %lu near %c\n", line, term);
+      if (!INBOUNDS(input)) {
+        error_info_t info = line_n_col(line, col);
+        sol_diag(SOL_DIAG_ERROR, &info, "unterminated string near %c\n", term);
+      }
 
       string_t *buf = new_str();
       while (CAN_PUTC(input) && input[i] != term && input[i] != '\n') {
         str_putc(buf, input[i]);
-        i++;
+        next;
       }
-      if (input[i] == term)
-        i++;
-      else
-        sol_fatal("unterminated string at line %lu near %c%s\n", line, term,
-                  str_cstr(buf));
+      if (input[i] == term) {
+        next;
+      } else {
+        error_info_t info = line_n_col(line, col);
+        sol_diag(SOL_DIAG_ERROR, &info, "unterminated string near %c\n", term);
+      }
 
-      if (!INBOUNDS(input))
-        sol_fatal("unterminated string at line %lu near %c%s\n", line, term,
-                  str_cstr(buf));
+      if (!INBOUNDS(input)) {
+        error_info_t info = line_n_col(line, col);
+        sol_diag(SOL_DIAG_ERROR, &info, "unterminated string near %c\n", term);
+      }
 
       token_t *tk = new_token(lexer, str_cstr(buf), SOL_TK_STRING);
       tk->line = line;
+      tk->col = col;
       push_token(lexer, tk);
       continue;
     }
@@ -296,11 +329,12 @@ void lex(lexer_t *lexer, const char *input) {
       str_putc(buf, input[i]);
 
       if (CAN_PUTC(input)) {
-        i++;
+        next;
       } else {
         char s[2] = {input[i], '\0'};
         token_t *tk = new_token(lexer, strdup(s), SOL_TK_IDENT);
         tk->line = line;
+        tk->col = col;
         push_token(lexer, tk);
         continue;
       }
@@ -308,20 +342,25 @@ void lex(lexer_t *lexer, const char *input) {
       while (CAN_PUTC(input) &&
              (is_alpha(input[i]) || is_num(input[i]) || input[i] == '_')) {
         str_putc(buf, input[i]);
-        i++;
+        next;
       }
 
       token_t *tk = new_token(lexer, str_cstr(buf), SOL_TK_IDENT);
       tk->line = line;
+      tk->col = col;
       push_token(lexer, tk);
       continue;
     }
 
-    sol_fatal("unrecognized character '%c' in line %lu\n", input[i], line);
+    error_info_t info = line_n_col(line, col);
+    sol_diag(SOL_DIAG_ERROR, &info, "unrecognized character '%c'\n", input[i]);
 
   continue_: {}
   }
 
-  char eof[1] = {'\0'};
-  push_token(lexer, new_token(lexer, eof, SOL_TK_EOF));
+  char eofs[1] = {'\0'};
+  token_t *eof = new_token(lexer, eofs, SOL_TK_EOF);
+  eof->line = line;
+  eof->col = col;
+  push_token(lexer, eof);
 }
