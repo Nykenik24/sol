@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
 
   generator_t *gen = new_gen(parser);
   generate(gen);
-  disassemble(gen, NULL);
+  // disassemble(gen, NULL);
 
   free_gen(gen);
   free_parser(parser);
