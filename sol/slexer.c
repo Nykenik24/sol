@@ -155,41 +155,39 @@ void lex(lexer_t *lexer, const char *input) {
 
       string_t *buf = new_str();
       while (input[i] != ']') {
-        if (input[i] == '\\') {
+        if (input[i] == '\\')
           next;
 
-          if (!CAN_PUTC(input)) {
-            error_info_t info = line_n_col(line, col);
-            sol_diag(SOL_DIAG_ERROR, &info,
-                     "unterminated multi-line string near [[%s\n",
-                     str_cstr(buf));
-          }
-
-          str_putc(buf, input[i]);
-          next;
-        }
-
-        next;
         if (!CAN_PUTC(input)) {
           error_info_t info = line_n_col(line, col);
           sol_diag(SOL_DIAG_ERROR, &info,
                    "unterminated multi-line string near [[%s\n", str_cstr(buf));
         }
 
-        if (input[i] != ']') {
-          error_info_t info = line_n_col(line, col);
-          sol_diag(SOL_DIAG_ERROR, &info,
-                   "wrong terminator for multi-line string\n");
-        }
-
+        str_putc(buf, input[i]);
         next;
-
-        ulong len;
-        token_t *tk = new_token(lexer, str_cstr(buf), SOL_TK_STRING);
-        tk->line = line;
-        push_back(lexer->tokens, tk);
-        continue;
       }
+
+      next;
+      if (!CAN_PUTC(input)) {
+        error_info_t info = line_n_col(line, col);
+        sol_diag(SOL_DIAG_ERROR, &info,
+                 "unterminated multi-line string near [[%s\n", str_cstr(buf));
+      }
+
+      if (input[i] != ']') {
+        error_info_t info = line_n_col(line, col);
+        sol_diag(SOL_DIAG_ERROR, &info,
+                 "wrong terminator for multi-line string\n");
+      }
+
+      next;
+
+      ulong len;
+      token_t *tk = new_token(lexer, str_cstr(buf), SOL_TK_STRING);
+      tk->line = line;
+      push_back(lexer->tokens, tk);
+      continue;
     }
 
     for (ulong j = 0; j < (sizeof symtable / sizeof symtable[0]); j++) {
