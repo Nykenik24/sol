@@ -14,6 +14,7 @@ typedef enum node_kind_t {
   SOL_NODE_TRUE,        // expr
   SOL_NODE_FALSE,       // expr
   SOL_NODE_VARARG,      // expr
+  SOL_NODE_RANGE,       // expr
   SOL_NODE_BINOP,       // expr
   SOL_NODE_UNOP,        // expr
   SOL_NODE_BREAK,       // stmt
@@ -47,6 +48,12 @@ typedef struct node_t {
   union {
     double num;
     const char *str;
+
+    struct {
+      double start;
+      double end;
+      bool inclusive;
+    } range;
 
     struct {
       struct node_t *left, *right;

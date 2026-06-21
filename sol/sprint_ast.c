@@ -96,6 +96,11 @@ static void print_node(node_t *node, int depth) {
     printf("ident(%s)\n", node->u.str);
     break;
 
+  case SOL_NODE_RANGE:
+    indent(depth);
+    printf("range(%g%s%g)\n", node->u.range.start,
+           node->u.range.inclusive ? "..." : "..", node->u.range.end);
+    break;
   case SOL_NODE_BINOP:
     indent(depth);
     printf("binop(%s)\n", node->u.binop.op->txt);

@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 
+// #include "common/vector.h"
 #include "sgen.h"
 #include "slexer.h"
 #include "sparser.h"
@@ -75,6 +77,10 @@ int main(int argc, char **argv) {
 
   lexer_t *lexer = new_lexer();
   lex(lexer, source);
+  // for (ulong i = 0; i < vector_size(lexer->tokens); i++) {
+  //   token_t *tk = (token_t *)vector_get(lexer->tokens, i);
+  //   printf("txt: %s, type: %d\n", tk->txt, tk->type);
+  // }
 
   parser_t *parser = new_parser(lexer);
   parse(parser);
@@ -83,7 +89,7 @@ int main(int argc, char **argv) {
 
   generator_t *gen = new_gen(parser);
   generate(gen);
-  // disassemble(gen, NULL);
+  disassemble(gen, NULL);
 
   free_gen(gen);
   free_parser(parser);

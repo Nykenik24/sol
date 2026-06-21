@@ -89,9 +89,9 @@ static node_t *p_stmt(parser_t *parser);
 static node_t *p_prefixexp(parser_t *parser);
 
 static int is_binop(const char *txt) {
-  static const char *ops[] = {"+",  "-",  "*",  "/",   "//", "^", "%",  "&",
-                              "~",  "|",  ">>", "<<",  "..", "<", "<=", ">",
-                              ">=", "==", "~=", "and", "or", NULL};
+  static const char *ops[] = {
+      "+",  "-", "*",  "/", "//", "^",  "%",  "&",   "~",  "|", ">>",
+      "<<", "<", "<=", ">", ">=", "==", "~=", "and", "or", NULL};
   for (int j = 0; ops[j]; j++)
     if (strcmp(txt, ops[j]) == 0)
       return 1;
@@ -517,7 +517,44 @@ static node_t *p_exp_prec(parser_t *parser, int min_prec) {
   return left;
 }
 
-static node_t *p_exp(parser_t *parser) { return p_exp_prec(parser, 1); }
+static node_t *p_exp(parser_t *parser) {
+  token_t *start = cur_tk();
+
+  // Ranges are like ultra special
+  // and require this special case
+  // here, aside from all other
+  // expressions that are pratt-parsed.
+  //
+  // I hate ranges.
+  if (cur_type() == SOL_TK_INT && parser->i + 1 < parser->ntoken) {
+    ulong save_i = parser->i;
+    double r_start = atof(cur_txt());
+    skip();
+    bool inclusive;
+    if (match("..")) {
+      inclusive = false;
+    } else if (match("...")) {
+      inclusive = true;
+    } else {
+      parser->i = save_i;
+      goto not_a_range;
+    }
+    skip();
+    double r_end = atof(cur_txt());
+    skip();
+
+    node_alloc(n);
+    n->kind = SOL_NODE_RANGE;
+    n->start = start;
+    n->u.range.start = r_start;
+    n->u.range.end = r_end;
+    n->u.range.inclusive = inclusive;
+    return n;
+  }
+not_a_range:
+
+  return p_exp_prec(parser, 1);
+}
 
 static node_t *p_block(parser_t *parser) {
   token_t *start = cur_tk();

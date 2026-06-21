@@ -266,8 +266,16 @@ void lex(lexer_t *lexer, const char *input) {
         if (input[i] != '.')
           goto push;
 
+        if (CAN_PUTC(input) && input[i + 1] == '.') {
+          goto push;
+        }
+
+        if (!CAN_PUTC(input) || !is_num(input[i + 1]))
+          goto push;
+
+        next;
         kind = SOL_TK_FLOAT;
-        str_putc(buf, input[i]);
+        str_putc(buf, '.');
 
         next;
         if (!INBOUNDS(input))
